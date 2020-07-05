@@ -1,0 +1,49 @@
+{
+  "update_url": "https://clients2.google.com/service/update2/crx",
+  "name": "SF Power",
+  "short_name": "sfpower",
+  "description": "Storefront power - tool for debugging storefront",
+  "author": "Phong Do",
+  "version": "5.0.0",
+  "icons": {
+    "16": "icons/16.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "permissions": [
+
+  ],
+  "browser_action": {
+    "default_title": "SF Power",
+    "default_popup": "pages/popup.html"
+  },
+
+  "content_scripts": [
+    {
+      "js": [
+        "js/libs/jquery-3.3.1.min.js",
+        "js/libs/pnotify.custom.min.js",
+        "js/utils.js",
+        "js/content.js"
+      ],
+      "css": [
+        "css/content.css",
+        "css/pnotify.custom.min.css"
+      ],
+      "run_at": "document_end",
+      "matches": [
+        "<all_urls>"
+      ],
+      "all_frames": false
+    }
+  ],
+  "manifest_version": 2,
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "externally_connectable": {
+    "matches": [
+    ]
+  },
+  "web_accessible_resources": [
+  ],
+  "options_page": "pages/option.html"
+}
