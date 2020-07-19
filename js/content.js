@@ -1,34 +1,70 @@
 'use strict'
 var isDebugBarOpen = false
-var globalEnv = '';
 var isSF = false
+let sfBootstrap;
+let sfShopId = 0;
+let sfPageType = '';
+let sfPageHandle = '';
+let sfPageId = 0;
+let sfPageObject = {};
 
-const envDev = 'dev', envStag = 'stag', envProd = 'prod';
-const prodAPIEndPoint = 'https://api.shopbase.com';
-const stagAPIEndPoint = 'https://gapi.stag.shopbase.net';
-const devAPIEndPoint = 'https://gapi.dev.shopbase.net';
 utils.sflog('Starting')
 
 startApplication();
 
 
-function startApplication() {
-    const {isStoreFront, env} = detectSFStore();
-    utils.sflog(`Is SF: ${isStoreFront}, env: ${env}`)
+async function startApplication() {
+    let {isStoreFront, shopId} = getFromCache()
 
-    // if (!isStoreFront) {
-    //     utils.sflog('This is not storefront');
-    //     isSF = false
-    //     return
-    // }
+    if (!isStoreFront) {
+        shopId = await getShopId();
+    }
 
-    utils.show_notify('Storefront detected.', `Press Ctrl + Alt + X to turn on debug mode`, 'success');
+    if (shopId <= 0) {
+        utils.sflog('This is not storefront');
+        isSF = false
+        return
+    }
+
+    if (!storage.get('show_notify')) {
+        utils.show_notify('Storefront detected.', `Press Ctrl + Alt + X to turn on debug mode`, 'success');
+        storage.set('show_notify', true)
+    }
+
+    // Detect page type
+    await detectPageType()
+
+    storage.set('shop_id', shopId)
     isSF = true
-    addDebugBar(env);
-    globalEnv = env;
+    sfShopId = shopId
+    await addDebugBar();
 }
 
-function addDebugBar(env) {
+async function detectPageType() {
+    const pathName = location.pathname;
+    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+        sfPageType = 'Product';
+        sfPageHandle = pathName.split('products/')[1];
+        const url = utils.getProductSingleUrl(sfPageHandle)
+        sfPageObject = await doAjax(url)
+        sfPageId = sfPageObject ? sfPageObject.id : 0
+        console.log('Product page: ', sfPageId)
+        return
+    }
+
+    if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+        sfPageType = 'Collection';
+        sfPageHandle = pathName.split('collections/')[1];
+
+        const url = utils.getCollectionSingleUrl(sfPageHandle)
+        sfPageObject = await doAjax(url)
+        sfPageObject = (sfPageObject && sfPageObject.collections && sfPageObject.collections.length > 0) ? sfPageObject.collections[0]: {id: 0}
+        sfPageId = sfPageObject.id
+        console.log('Collection page: ', sfPageId)
+    }
+}
+
+async function addDebugBar() {
     // Add debug bar
     const debugBar = document.createElement('div')
     debugBar.setAttribute('id', 'sbase-debug-sidebar')
@@ -86,47 +122,57 @@ function addDebugBar(env) {
     };
     debugBar.appendChild(moveDownButton);
 
+    // Information bar
+    const informationText = document.createElement('p');
+    informationText.setAttribute('class', 'text-heading')
+    informationText.innerText = 'Information';
+    debugBar.appendChild(informationText);
 
-    // // Add environment area
-    // const envDisplayer = document.createElement('p');
-    // envDisplayer.id = 'env_displayer'
-    // envDisplayer.setAttribute('class', 'text-heading')
-    // envDisplayer.innerText = `Env detected: ${env}`;
-    // debugBar.appendChild(envDisplayer);
-    //
-    // // Manual choose env
-    // const devEnvButton = document.createElement('button')
-    // devEnvButton.innerHTML = 'Dev'
-    // devEnvButton.id = 'btn_dev_env'
-    // devEnvButton.setAttribute('class', 'bkbtn-mini bkthird')
-    // devEnvButton.onclick = function () {
-    //     manualSetEnv(envDev)
-    // };
-    //
-    // debugBar.appendChild(devEnvButton)
-    //
-    // const stagEnvButton = document.createElement('button')
-    // stagEnvButton.innerHTML = 'Stag';
-    // stagEnvButton.id = 'btn_stag_env';
-    // stagEnvButton.setAttribute('class', 'bkbtn-mini bkthird')
-    // stagEnvButton.onclick = function () {
-    //     manualSetEnv(envStag)
-    // };
-    // debugBar.appendChild(stagEnvButton)
-    //
-    // const prodEnvButton = document.createElement('button')
-    // prodEnvButton.innerHTML = 'Production'
-    // prodEnvButton.id = 'btn_prod_env'
-    // prodEnvButton.setAttribute('class', 'bkbtn-mini bkthird')
-    // prodEnvButton.onclick = function () {
-    //     manualSetEnv(envProd)
-    // };
-    // debugBar.appendChild(prodEnvButton)
+    const reloadButton = document.createElement('button')
+    reloadButton.innerHTML = `Reload`;
+    reloadButton.id = 'btn_reload';
+    reloadButton.setAttribute('class', 'bkbtn bkthird')
+    reloadButton.onclick = async function () {
+        // reload information
+        await detectPageType();
+
+        if (sfPageType && sfPageType.length > 0) {
+            const pageTypeButton = document.getElementById('btn_page_type')
+            if (pageTypeButton) {
+                pageTypeButton.innerHTML = `${sfPageType}: ${sfPageId}`;
+                pageTypeButton.onclick = function () {
+                    utils.copyToClipboard(`${sfPageId}`)
+                };
+            }
+        }
+    };
+    debugBar.appendChild(reloadButton)
+
+    const shopIdButton = document.createElement('button')
+    shopIdButton.innerHTML = `Shop id: ${sfShopId}`;
+    shopIdButton.id = 'btn_shop_id';
+    shopIdButton.setAttribute('class', 'bkbtn bkthird')
+    shopIdButton.onclick = function () {
+        utils.copyToClipboard(`${sfShopId}`)
+    };
+    debugBar.appendChild(shopIdButton)
+
+    if (sfPageType && sfPageType.length > 0) {
+        const pageTypeButton = document.createElement('button')
+        pageTypeButton.innerHTML = `${sfPageType}: ${sfPageId}`;
+        pageTypeButton.id = 'btn_page_type';
+        pageTypeButton.setAttribute('class', 'bkbtn bkthird')
+        pageTypeButton.onclick = function () {
+            utils.copyToClipboard(`${sfPageId}`)
+        };
+        debugBar.appendChild(pageTypeButton)
+    }
+
 
     // Tool bar
     const toolText = document.createElement('p');
     toolText.setAttribute('class', 'text-heading')
-    toolText.innerText = 'Tool';
+    toolText.innerText = 'Quick url';
     debugBar.appendChild(toolText);
 
     const bootstrapButton = document.createElement('button')
@@ -210,62 +256,37 @@ function addDebugBar(env) {
     debugBar.appendChild(sbaseDebugButton)
 }
 
-function detectSFStore() {
-    // detect by domain
-    let hostname = window.location.hostname;
-    if (hostname.includes(".onshopbase.com")) {
+function getFromCache() {
+    sfShopId = storage.get('shop_id')
+    if (sfShopId && !sfShopId.length) {
+        utils.sflog('Cache empty')
         return {
-            isStoreFront: true,
-            env: envProd
+            shop_id: 0,
+            ok: false
         }
     }
 
-    if (hostname.includes(".stag.myshopbase.net")) {
+    const shopId = parseInt(sfShopId)
+    if (shopId > 0) {
+        utils.sflog('Cache OK')
         return {
-            isStoreFront: true,
-            env: envStag
-        }
-    }
-
-    if (hostname.includes(".myshopbase.net")) {
-        return {
-            isStoreFront: true,
-            env: envDev
-        }
-    }
-
-    // detect prod env
-    let scriptTags = $('script[src*="cdn.shopbasecdn.com"] script[src*="cdn.btdmp.com"]')
-    if (scriptTags && scriptTags.length > 0) {
-        return {
-            isStoreFront: true,
-            env: envProd
-        }
-    }
-    // detect stag env
-    scriptTags = $('script[src*="cdn-stag.shopbasecdn.com"] script[src*="cdn-stag.btdmp.com"]')
-    console.log(scriptTags)
-    if (scriptTags && scriptTags.length > 0) {
-        return {
-            isStoreFront: true,
-            env: envStag
-        }
-    }
-
-    // detect dev env
-    scriptTags = $('script[src*="cdn-dev.shopbasecdn.com"] script[src*="cdn.btdmp.com"]')
-    console.log(scriptTags)
-    if (scriptTags && scriptTags.length > 0) {
-        return {
-            isStoreFront: true,
-            env: envDev
+            shop_id: shopId,
+            ok: true,
         }
     }
 
     return {
-        isStoreFront: false,
-        env: envDev
+        shop_id: 0,
+        ok: false
     }
+}
+
+async function getShopId() {
+    let url = utils.getBootstrapUrl();
+    let bootstrap = await doAjax(url)
+    sfBootstrap = utils.parseBootstrap(bootstrap);
+
+    return sfBootstrap.shop_id
 }
 
 function toggleDebugBar() {
@@ -273,12 +294,10 @@ function toggleDebugBar() {
         isDebugBarOpen = false
         document.getElementById('sbase-debug-sidebar').style.height = '0';
         document.getElementById('sbase-debug-sidebar').style.height = '0';
-        utils.show_notify('Turn off debug mode', ``, 'warning');
     } else {
         isDebugBarOpen = true
         document.getElementById('sbase-debug-sidebar').style.height = '100%';
         document.getElementById('sbase-debug-sidebar').style.width = '200px';
-        utils.show_notify('Turn on debug mode', ``, 'success');
     }
 }
 
@@ -309,15 +328,8 @@ function moveDebugBar(debugBar, direction) {
     localStorage.setItem('sbase-debugbar-location', direction);
 }
 
-function manualSetEnv(env) {
-    $('#env_displayer').text(`Manual set env: ${env}`);
-    utils.show_notify('Manual set env', `Manual set env to ${env}`, 'success');
-    globalEnv = env
-}
-
 function openBootstrap() {
-    var url = `${window.location.origin}/api/bootstrap/${window.location.hostname}.json`;
-    window.open(url);
+    window.open(utils.getBootstrapUrl());
 }
 
 function addParamSkipCache() {
@@ -348,13 +360,8 @@ function openProductSingle() {
     if (paths && paths.length == 2) {
         defaultHandle = paths[1];
     }
-    let handle = prompt('input handle', defaultHandle);
-    if (!handle) {
-        utils.show_notify('Empty handle', `Please provide handle`, 'error');
-        return
-    }
 
-    let url = `${window.location.origin}/api/catalog/product.json?handle=${handle}`;
+    let url = `${window.location.origin}/api/catalog/product.json?handle=${defaultHandle}`;
     window.open(url);
 }
 
@@ -365,13 +372,8 @@ function openCollectionSingle() {
     if (paths && paths.length == 2) {
         defaultHandle = paths[1];
     }
-    let handle = prompt('input handle', defaultHandle);
-    if (!handle) {
-        utils.show_notify('Empty handle', `Please provide handle`, 'error');
-        return
-    }
 
-    let url = `${window.location.origin}/api/catalog/collections_v2.json?handles=${handle}`;
+    let url = `${window.location.origin}/api/catalog/collections_v2.json?handles=${defaultHandle}`;
     window.open(url);
 }
 
@@ -389,8 +391,8 @@ document.onkeydown = keydown;
 
 function keydown(evt) {
     if (!isSF) {
-        utils.show_notify('Force storefront :nhin_scare:. Press again to show bar')
-        addDebugBar('dev');
+        utils.sflog('Force storefront :nhin_scare:')
+        addDebugBar();
         isSF = true
     }
 
