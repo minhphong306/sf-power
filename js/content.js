@@ -3,10 +3,14 @@ var isDebugBarOpen = false
 var isSF = false
 let sfBootstrap;
 let sfShopId = 0;
+let sfPlatformDomain = '';
 let sfPageType = '';
 let sfPageHandle = '';
 let sfPageId = 0;
 let sfPageObject = {};
+let sfCartToken = '';
+let sfCheckoutToken = '';
+
 
 utils.sflog('Starting')
 
@@ -14,10 +18,13 @@ startApplication();
 
 
 async function startApplication() {
-    let {isStoreFront, shopId} = getFromCache()
+    let {ok, shopId, platformDomain} = getFromCache()
 
-    if (!isStoreFront) {
-        shopId = await getShopId();
+    if (!ok) {
+        utils.sflog('Request bootstrap')
+        const res = await getShopId();
+        shopId = res.shop_id;
+        platformDomain = res.platform_domain;
     }
 
     if (shopId <= 0) {
@@ -34,14 +41,38 @@ async function startApplication() {
     // Detect page type
     await detectPageType()
 
-    storage.set('shop_id', shopId)
+    // cart token, checkout token
+    sfCartToken = storage.getOrigin('shop/carts/current-cart-token').replace('"', '').replace('"', '');
+    sfCheckoutToken = storage.getOrigin('shop/carts/current-checkout-token').replace('"', '').replace('"', '');
+
     isSF = true
-    sfShopId = shopId
+    if (shopId) {
+        sfShopId = shopId
+    }
+
+    if (platformDomain) {
+        sfPlatformDomain = platformDomain
+    }
+
+    storage.set('shop_id', sfShopId)
+    storage.set('platform_domain', sfPlatformDomain)
     await addDebugBar();
 }
 
 async function detectPageType() {
     const pathName = location.pathname;
+
+    // Get cache
+    const cacheKey = `${pathName}`
+    const rawData = storage.get(cacheKey)
+    if (rawData && rawData.length && rawData.split(';').length === 2) {
+        const data = rawData.split(';')
+        sfPageType = data[0];
+        sfPageId = data[1];
+        utils.sflog('Cache page OK')
+        return
+    }
+
     if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
         sfPageType = 'Product';
         sfPageHandle = pathName.split('products/')[1];
@@ -49,6 +80,9 @@ async function detectPageType() {
         sfPageObject = await doAjax(url)
         sfPageId = sfPageObject ? sfPageObject.id : 0
         console.log('Product page: ', sfPageId)
+
+        // Set cache
+        storage.set(cacheKey, `${sfPageType};${sfPageId}`)
         return
     }
 
@@ -58,9 +92,11 @@ async function detectPageType() {
 
         const url = utils.getCollectionSingleUrl(sfPageHandle)
         sfPageObject = await doAjax(url)
-        sfPageObject = (sfPageObject && sfPageObject.collections && sfPageObject.collections.length > 0) ? sfPageObject.collections[0]: {id: 0}
+        sfPageObject = (sfPageObject && sfPageObject.collections && sfPageObject.collections.length > 0) ? sfPageObject.collections[0] : {id: 0}
         sfPageId = sfPageObject.id
         console.log('Collection page: ', sfPageId)
+        // Set cache
+        storage.set(cacheKey, `${sfPageType};${sfPageId}`)
     }
 }
 
@@ -137,12 +173,23 @@ async function addDebugBar() {
         await detectPageType();
 
         if (sfPageType && sfPageType.length > 0) {
-            const pageTypeButton = document.getElementById('btn_page_type')
-            if (pageTypeButton) {
-                pageTypeButton.innerHTML = `${sfPageType}: ${sfPageId}`;
-                pageTypeButton.onclick = function () {
-                    utils.copyToClipboard(`${sfPageId}`)
-                };
+            let pageTypeButton = document.getElementById('btn_page_type')
+
+            let isNeedInsert = false;
+            if (!pageTypeButton) {
+                pageTypeButton = document.createElement('button')
+                pageTypeButton.id = 'btn_page_type';
+                isNeedInsert = true
+            }
+
+            pageTypeButton.innerHTML = `${sfPageType}: ${sfPageId}`;
+            pageTypeButton.onclick = function () {
+                utils.copyToClipboard(`${sfPageId}`)
+            };
+
+            if (isNeedInsert) {
+                const shopIdButton = document.getElementById('btn_shop_id')
+                shopIdButton.parentNode.insertBefore(pageTypeButton, shopIdButton.nextSibling)
             }
         }
     };
@@ -168,12 +215,61 @@ async function addDebugBar() {
         debugBar.appendChild(pageTypeButton)
     }
 
+    if (sfPlatformDomain && sfPlatformDomain.length) {
+        const platformDomainBtn = document.createElement('button')
+        platformDomainBtn.innerHTML = `Platform domain: ${sfPlatformDomain}`;
+        platformDomainBtn.id = 'btn_platform_domain';
+        platformDomainBtn.setAttribute('class', 'bkbtn bkthird')
+        platformDomainBtn.onclick = function () {
+            utils.copyToClipboard(`${sfPlatformDomain}`)
+        };
+        debugBar.appendChild(platformDomainBtn)
+    }
+
+    if (sfCartToken) {
+        const cartTokenBtn = document.createElement('button')
+        cartTokenBtn.innerHTML = `Cart token: ${sfCartToken}`;
+        cartTokenBtn.id = 'btn_cart_token';
+        cartTokenBtn.setAttribute('class', 'bkbtn bkthird')
+        cartTokenBtn.onclick = function () {
+            utils.copyToClipboard(`${sfCartToken}`)
+        };
+        debugBar.appendChild(cartTokenBtn)
+    }
+
+    if (sfCheckoutToken) {
+        const checkoutTokenBtn = document.createElement('button')
+        checkoutTokenBtn.innerHTML = `Checkout token: ${sfCheckoutToken}`;
+        checkoutTokenBtn.id = 'btn_checkout_token';
+        checkoutTokenBtn.setAttribute('class', 'bkbtn bkthird')
+        checkoutTokenBtn.onclick = function () {
+            utils.copyToClipboard(`${sfCheckoutToken}`)
+        };
+        debugBar.appendChild(checkoutTokenBtn)
+    }
 
     // Tool bar
     const toolText = document.createElement('p');
     toolText.setAttribute('class', 'text-heading')
-    toolText.innerText = 'Quick url';
+    toolText.innerText = 'Tool';
     debugBar.appendChild(toolText);
+
+    const clearCartBtn = document.createElement('button')
+    clearCartBtn.innerHTML = `Shop id: ${sfShopId}`;
+    clearCartBtn.id = 'sf_btn_clear_cart';
+    clearCartBtn.setAttribute('class', 'bkbtn bkthird')
+    clearCartBtn.onclick = function () {
+        storage.setOrigin('shop/carts/current-cart-token', null)
+        window.location.reload();
+    };
+    debugBar.appendChild(clearCartBtn)
+
+
+    // Quick url
+    const quickUrlText = document.createElement('p');
+    quickUrlText.setAttribute('class', 'text-heading')
+    quickUrlText.innerText = 'Quick url';
+    debugBar.appendChild(quickUrlText);
 
     const bootstrapButton = document.createElement('button')
     bootstrapButton.innerHTML = 'Bootstrap';
@@ -262,7 +358,8 @@ function getFromCache() {
         utils.sflog('Cache empty')
         return {
             shop_id: 0,
-            ok: false
+            ok: false,
+            platformDomain: ''
         }
     }
 
@@ -272,12 +369,14 @@ function getFromCache() {
         return {
             shop_id: shopId,
             ok: true,
+            platformDomain: storage.get('platform_domain')
         }
     }
 
     return {
         shop_id: 0,
-        ok: false
+        ok: false,
+        platformDomain: ''
     }
 }
 
@@ -286,7 +385,7 @@ async function getShopId() {
     let bootstrap = await doAjax(url)
     sfBootstrap = utils.parseBootstrap(bootstrap);
 
-    return sfBootstrap.shop_id
+    return {shop_id: sfBootstrap.shop_id, platform_domain: sfBootstrap.platform_domain}
 }
 
 function toggleDebugBar() {
@@ -297,7 +396,7 @@ function toggleDebugBar() {
     } else {
         isDebugBarOpen = true
         document.getElementById('sbase-debug-sidebar').style.height = '100%';
-        document.getElementById('sbase-debug-sidebar').style.width = '200px';
+        document.getElementById('sbase-debug-sidebar').style.width = '500px';
     }
 }
 

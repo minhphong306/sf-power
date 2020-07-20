@@ -33,7 +33,8 @@ const utils = {
         }
 
         return {
-            shop_id: 0
+            shop_id: 0,
+            platform_domain: ''
         }
     }, show_notify(title, text, type) {
         PNotify.removeAll();
@@ -84,6 +85,10 @@ const storage = {
     set: (e, value) => {
         let key = `sfpower-${e}`;
         localStorage.setItem(key, value)
+    }, getOrigin: (e) => {
+        return localStorage.getItem(e);
+    }, setOrigin: (k, v) => {
+        localStorage.setItem(k, v)
     }
 }
 
