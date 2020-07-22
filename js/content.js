@@ -42,8 +42,14 @@ async function startApplication() {
     await detectPageType()
 
     // cart token, checkout token
-    sfCartToken = storage.getOrigin('shop/carts/current-cart-token').replace('"', '').replace('"', '');
-    sfCheckoutToken = storage.getOrigin('shop/carts/current-checkout-token').replace('"', '').replace('"', '');
+    sfCartToken = storage.getOrigin('shop/carts/current-cart-token');
+    if (sfCartToken) {
+        sfCartToken = sfCartToken.replace('"', '').replace('"', '')
+    }
+    sfCheckoutToken = storage.getOrigin('shop/carts/current-checkout-token');
+    if (sfCheckoutToken) {
+        sfCheckoutToken = sfCheckoutToken.replace('"', '').replace('"', '');
+    }
 
     isSF = true
     if (shopId) {
@@ -273,6 +279,42 @@ async function addDebugBar() {
         window.location.reload();
     };
     debugBar.appendChild(clearCartBtn)
+
+    // gt metrix page speed
+    const gtMetrixForm = document.createElement('form')
+    gtMetrixForm.method='post'
+    gtMetrixForm.action='https://gtmetrix.com/analyze.html';
+    gtMetrixForm.target = 'TheWindow'
+    gtMetrixForm.id = 'sf_gt_metrix_form';
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'hidden';
+    urlInput.value = window.location.href;
+    urlInput.name = 'url';
+
+    gtMetrixForm.appendChild(urlInput);
+    debugBar.appendChild(gtMetrixForm)
+    const gtMetrixBtn = document.createElement('button')
+    gtMetrixBtn.innerHTML = `GtMetrix page speed`;
+    gtMetrixBtn.id = 'sf_btn_gt_metrix';
+    gtMetrixBtn.setAttribute('class', 'bkbtn bkthird')
+    gtMetrixBtn.onclick = function () {
+        window.open('', 'TheWindow');
+        gtMetrixForm.submit();
+    };
+    debugBar.appendChild(gtMetrixBtn)
+
+
+    // google page speed
+    const ggPageSpeedBtn = document.createElement('button')
+    ggPageSpeedBtn.innerHTML = `Google page speed`;
+    ggPageSpeedBtn.id = 'sf_btn_google_page_speed';
+    ggPageSpeedBtn.setAttribute('class', 'bkbtn bkthird')
+    ggPageSpeedBtn.onclick = function () {
+       const url = window.location.href;
+       window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
+    };
+    debugBar.appendChild(ggPageSpeedBtn)
 
 
     // Quick url
