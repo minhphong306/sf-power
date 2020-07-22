@@ -194,10 +194,13 @@ async function addDebugBar() {
         }
 
         // Reload cart token
-        const cartToken = storage.getOrigin('shop/carts/current-cart-token')
+        sfCartToken = storage.getOrigin('shop/carts/current-cart-token')
+        if (sfCartToken) {
+            sfCartToken = sfCartToken.replace('"', '').replace('"', '');
+        }
         let cartTokenBtn = document.getElementById('btn_cart_token')
         if (cartTokenBtn) {
-            cartTokenBtn.innerText = `Cart token: ${cartToken.replace('"', '').replace('"', '')}`
+            cartTokenBtn.innerText = `Cart token: ${sfCartToken}`
         }
     };
     debugBar.appendChild(reloadButton)
