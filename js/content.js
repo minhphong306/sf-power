@@ -192,6 +192,13 @@ async function addDebugBar() {
                 shopIdButton.parentNode.insertBefore(pageTypeButton, shopIdButton.nextSibling)
             }
         }
+
+        // Reload cart token
+        const cartToken = storage.getOrigin('shop/carts/current-cart-token')
+        let cartTokenBtn = document.getElementById('btn_cart_token')
+        if (cartTokenBtn) {
+            cartTokenBtn.innerText = `Cart token: ${cartToken.replace('"', '').replace('"', '')}`
+        }
     };
     debugBar.appendChild(reloadButton)
 
@@ -255,7 +262,7 @@ async function addDebugBar() {
     debugBar.appendChild(toolText);
 
     const clearCartBtn = document.createElement('button')
-    clearCartBtn.innerHTML = `Shop id: ${sfShopId}`;
+    clearCartBtn.innerHTML = `Clear cart`;
     clearCartBtn.id = 'sf_btn_clear_cart';
     clearCartBtn.setAttribute('class', 'bkbtn bkthird')
     clearCartBtn.onclick = function () {
