@@ -12,6 +12,19 @@ let sfCartToken = '';
 let sfCheckoutToken = '';
 let isDragging = false;
 
+let SF_VAR = {
+    debug_open: false,
+    sf: false,
+    dragging: false,
+    shop_id: 0,
+    domain: '',
+    page_id: 0,
+    page_type: '',
+    handle: '',
+    cart_token: '',
+    checkout_token: ''
+}
+
 
 utils.sflog('Starting')
 
@@ -19,52 +32,182 @@ startApplication();
 
 
 async function startApplication() {
-    let {ok, shopId, platformDomain} = getFromCache()
+    // Get from cache
 
-    if (!ok) {
-        utils.sflog('Request bootstrap')
-        const res = await getShopId();
-        shopId = res.shop_id;
-        platformDomain = res.platform_domain;
-    }
+    // If not ok, request boostrap, set to cache: {sf_is_sf:false, shop_id: 0}
 
-    if (shopId <= 0) {
-        utils.sflog('This is not storefront');
-        isSF = false
-        return
-    }
+    // Get page info from cache: type, id, handle
 
-    if (!storage.get('show_notify')) {
-        utils.show_notify('Storefront detected.', `Press Ctrl + Alt + X to turn on debug mode`, 'success');
-        storage.set('show_notify', true)
-    }
+    // Get basic information: cart_token, checkout token
 
-    // Detect page type
-    await detectPageType()
-
-    // cart token, checkout token
-    sfCartToken = storage.getOrigin('shop/carts/current-cart-token');
-    if (sfCartToken) {
-        sfCartToken = sfCartToken.replace('"', '').replace('"', '')
-    }
-    sfCheckoutToken = storage.getOrigin('shop/carts/current-checkout-token');
-    if (sfCheckoutToken) {
-        sfCheckoutToken = sfCheckoutToken.replace('"', '').replace('"', '');
-    }
-
-    isSF = true
-    if (shopId) {
-        sfShopId = shopId
-    }
-
-    if (platformDomain) {
-        sfPlatformDomain = platformDomain
-    }
-
-    storage.set('shop_id', sfShopId)
-    storage.set('platform_domain', sfPlatformDomain)
+    // Build debug panel
     addIcon();
-    await addDebugBar();
+    addDebugPanel();
+
+
+}
+
+function addDebugPanel(){
+    const rawHTML = `<div id="sbase-debug-sidebar" class="sfrow">
+        <div class="sfcol-md-5 debug-sidebar">
+            <!--Start static panel-->
+            <div class="sfpanel sfpanel-primary">
+                <div class="sfpanel-heading">
+                    <i class="fa fa-bug"> </i>
+                    <a href="/"><span class="mp-menu-text">Debug theo cách của bạn và fix theo cách của chúng tôi</span></a>
+                </div>
+                <div class="mp-panel-menu sfpanel-body">
+                    <div class="mp-padding-10">
+                        <h3 class="sftext-danger">
+                            <button class="sfbtn">
+                                <i class="fa fa-refresh"></i>
+                            </button>
+                            Thông tin cơ bản (click để copy)
+
+                        </h3>
+
+                        <table class="sftable sftable-hover">
+                            <thead>
+                            <tr>
+                                <th>Loại thông tin</th>
+                                <th>Giá trị</th>
+                            </tr>
+                            </thead>
+
+                            <tbody>
+                            <tr onclick="copyToClipboard('${SF_VAR.shop_id}')">
+                                <td>Shop id</td>
+                                <td>${SF_VAR.shop_id}</td>
+                            </tr>
+                            <tr  onclick="copyToClipboard('${SF_VAR.domain}')">
+                                <td>Platform domain</td>
+                                <td>${SF_VAR.domain}</td>
+                            </tr>
+                            <tr  onclick="copyToClipboard('${SF_VAR.page_id}')">
+                                <td>${SF_VAR.page_type}</td>
+                                <td>${SF_VAR.page_id}</td>
+                            </tr>
+                            <tr>
+                                <td>Cart token</td>
+                                <td>d0821fa2b1f14a0b98cc62ccf76bc351</td>
+                            </tr>
+                            <tr>
+                                <td>Checkout token</td>
+                                <td>e6cf42e5875a4bc589151db946ae85c2</td>
+                            </tr>
+                            </tbody>
+                        </table>
+
+                        <h3 class="sftext-danger">
+                            <button class="sfbtn">
+                                <i class="fa fa-wrench"></i>
+                            </button>
+                            Tools
+                        </h3>
+                        <table class="sftable sftable-hover">
+                            <tbody>
+                            <tr>
+                                <td>
+                                    Clear things
+                                </td>
+                                <td>
+                                    <button class="btn btn-danger">
+                                        <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
+                                        Clear cart
+                                    </button>
+                                    <button class="btn btn-danger">
+                                        <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                                        Clear FS
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Page speed</td>
+                                <td>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-motorcycle" aria-hidden="true"></i>
+                                        Gtmetrix
+                                    </button>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-google" aria-hidden="true"></i>
+                                        Google
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Params</td>
+                                <td>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-bug" aria-hidden="true"></i>
+                                        Sbase debug
+                                    </button>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-spinner" aria-hidden="true"></i>
+                                        Render csr
+                                    </button>
+                                </td>
+                            </tr>
+
+                            </tbody>
+                        </table>
+
+                        <h3 class="text-danger">
+                            <button class="btn">
+                                <i class="fa fa-link"></i>
+                            </button>
+                            Quick URLs
+                        </h3>
+                        <table class="table table-hover">
+                            <tbody>
+                            <tr>
+                                <td>
+                                    Bootstrap
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-info-circle" aria-hidden="true"></i>
+                                        Bootstrap
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Product</td>
+                                <td>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-cube" aria-hidden="true"></i>
+                                        Product single
+                                    </button>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-cubes" aria-hidden="true"></i>
+                                        Product list
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Collection</td>
+                                <td>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-object-group" aria-hidden="true"></i>
+                                        Collection single
+                                    </button>
+                                    <button class="btn btn-primary">
+                                        <i class="fa fa-object-group" aria-hidden="true"></i>
+                                        Collection list
+                                    </button>
+                                </td>
+                            </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!--End static panel-->
+        </div>
+    </div>`
+    const html = $.parseHTML(rawHTML);
+
+    $('body').append(html);
 }
 
 async function detectPageType() {
@@ -108,20 +251,13 @@ async function detectPageType() {
     }
 }
 
-function addIcon(){
-    const icon = document.createElement('div')
-    icon.setAttribute('id', 'sf-tool-icon')
-    icon.setAttribute('class', 'sf-float')
-    icon.onclick = function(){
-        setTimeout(function(){
-            if (!isDragging) {
-                toggleDebugBar();
-                isDragging = false;
-            }
-        }, 200)
-    }
-    utils.dragElement(icon, isDragging)
-    document.body.appendChild(icon)
+function addIcon() {
+    console.log('Generate icon');
+    const rawHtml = `<div id="sf-tool-icon" class="sf-float">
+    </div>`
+    const html = $.parseHTML(rawHtml);
+
+    $('body').append(html);
 }
 
 async function addDebugBar() {
@@ -300,8 +436,8 @@ async function addDebugBar() {
 
     // gt metrix page speed
     const gtMetrixForm = document.createElement('form')
-    gtMetrixForm.method='post'
-    gtMetrixForm.action='https://gtmetrix.com/analyze.html';
+    gtMetrixForm.method = 'post'
+    gtMetrixForm.action = 'https://gtmetrix.com/analyze.html';
     gtMetrixForm.target = 'TheWindow'
     gtMetrixForm.id = 'sf_gt_metrix_form';
 
@@ -329,8 +465,8 @@ async function addDebugBar() {
     ggPageSpeedBtn.id = 'sf_btn_google_page_speed';
     ggPageSpeedBtn.setAttribute('class', 'bkbtn bkthird')
     ggPageSpeedBtn.onclick = function () {
-       const url = window.location.href;
-       window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
+        const url = window.location.href;
+        window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
     };
     debugBar.appendChild(ggPageSpeedBtn)
 
@@ -566,7 +702,7 @@ document.onkeydown = keydown;
 function keydown(evt) {
     if (!isSF) {
         utils.sflog('Force storefront :nhin_scare:')
-        addDebugBar();
+        // addDebugBar();
         isSF = true
     }
 
