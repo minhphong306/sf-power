@@ -48,166 +48,70 @@ async function startApplication() {
 }
 
 function addDebugPanel(){
-    const rawHTML = `<div id="sbase-debug-sidebar" class="sfrow">
-        <div class="sfcol-md-5 debug-sidebar">
-            <!--Start static panel-->
-            <div class="sfpanel sfpanel-primary">
-                <div class="sfpanel-heading">
-                    <i class="fa fa-bug"> </i>
-                    <a href="/"><span class="mp-menu-text">Debug theo cách của bạn và fix theo cách của chúng tôi</span></a>
-                </div>
-                <div class="mp-panel-menu sfpanel-body">
-                    <div class="mp-padding-10">
-                        <h3 class="sftext-danger">
-                            <button class="sfbtn">
-                                <i class="fa fa-refresh"></i>
-                            </button>
-                            Thông tin cơ bản (click để copy)
 
-                        </h3>
+    const rawHTML = `<div id="sbase-debug-sidebar" style="position:fixed; bottom:50px; right:50px;  border: 0; background-color: lightblue; ">
+    <iframe id="myframe" style="width: 500px; height: 800px; border: 0">
 
-                        <table class="sftable sftable-hover">
-                            <thead>
-                            <tr>
-                                <th>Loại thông tin</th>
-                                <th>Giá trị</th>
-                            </tr>
-                            </thead>
-
-                            <tbody>
-                            <tr onclick="copyToClipboard('${SF_VAR.shop_id}')">
-                                <td>Shop id</td>
-                                <td>${SF_VAR.shop_id}</td>
-                            </tr>
-                            <tr  onclick="copyToClipboard('${SF_VAR.domain}')">
-                                <td>Platform domain</td>
-                                <td>${SF_VAR.domain}</td>
-                            </tr>
-                            <tr  onclick="copyToClipboard('${SF_VAR.page_id}')">
-                                <td>${SF_VAR.page_type}</td>
-                                <td>${SF_VAR.page_id}</td>
-                            </tr>
-                            <tr>
-                                <td>Cart token</td>
-                                <td>d0821fa2b1f14a0b98cc62ccf76bc351</td>
-                            </tr>
-                            <tr>
-                                <td>Checkout token</td>
-                                <td>e6cf42e5875a4bc589151db946ae85c2</td>
-                            </tr>
-                            </tbody>
-                        </table>
-
-                        <h3 class="sftext-danger">
-                            <button class="sfbtn">
-                                <i class="fa fa-wrench"></i>
-                            </button>
-                            Tools
-                        </h3>
-                        <table class="sftable sftable-hover">
-                            <tbody>
-                            <tr>
-                                <td>
-                                    Clear things
-                                </td>
-                                <td>
-                                    <button class="btn btn-danger">
-                                        <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
-                                        Clear cart
-                                    </button>
-                                    <button class="btn btn-danger">
-                                        <i class="fa fa-file-text-o" aria-hidden="true"></i>
-                                        Clear FS
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Page speed</td>
-                                <td>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-motorcycle" aria-hidden="true"></i>
-                                        Gtmetrix
-                                    </button>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-google" aria-hidden="true"></i>
-                                        Google
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Params</td>
-                                <td>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-bug" aria-hidden="true"></i>
-                                        Sbase debug
-                                    </button>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-spinner" aria-hidden="true"></i>
-                                        Render csr
-                                    </button>
-                                </td>
-                            </tr>
-
-                            </tbody>
-                        </table>
-
-                        <h3 class="text-danger">
-                            <button class="btn">
-                                <i class="fa fa-link"></i>
-                            </button>
-                            Quick URLs
-                        </h3>
-                        <table class="table table-hover">
-                            <tbody>
-                            <tr>
-                                <td>
-                                    Bootstrap
-                                </td>
-                                <td>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-info-circle" aria-hidden="true"></i>
-                                        Bootstrap
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Product</td>
-                                <td>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-cube" aria-hidden="true"></i>
-                                        Product single
-                                    </button>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-cubes" aria-hidden="true"></i>
-                                        Product list
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Collection</td>
-                                <td>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-object-group" aria-hidden="true"></i>
-                                        Collection single
-                                    </button>
-                                    <button class="btn btn-primary">
-                                        <i class="fa fa-object-group" aria-hidden="true"></i>
-                                        Collection list
-                                    </button>
-                                </td>
-                            </tr>
-
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <!--End static panel-->
-        </div>
-    </div>`
+    </iframe>
+</div>`
     const html = $.parseHTML(rawHTML);
 
     $('body').append(html);
+
+    let script = `
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></s` + `cript>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>`
+
+
+    let rawHTML2 = `<!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>abc</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    ${script}
+
+<link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">
+<style>
+    .mp-panel-menu.panel-body {
+        padding: 0
+    }
+
+    .panel-heading a {
+        color: #fff;
+    }
+
+    .mp-padding-10 {
+        padding: 10px;
+    }
+
+    .sf-float {
+        position: fixed;
+        width: 60px;
+        height: 60px;
+        bottom: 40px;
+        left: 40px;
+        background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
+        background-size: contain;
+        color: #FFF;
+        border-radius: 50px;
+        text-align: center;
+        box-shadow: 2px 2px 3px #999;
+    }
+</style>
+
+</head>
+<body>
+<div class="container">
+    <h1>Hello world</h1>
+</div>
+</body>
+</html>
+`;
+
+    document.getElementById('myframe').contentWindow.document.write(rawHTML2);
 }
 
 async function detectPageType() {
