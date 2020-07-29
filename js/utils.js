@@ -114,6 +114,14 @@ const utils = {
             document.onmouseup = null;
             document.onmousemove = null;
         }
+    },
+    parseJSON(raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed;
+        } catch {
+            return ""
+        }
     }
 }
 

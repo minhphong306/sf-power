@@ -34,6 +34,19 @@ const SF_CONST = {
     KEY_PLATFORM_DOMAIN: "platform_domain",
     KEY_CART_TOKEN: "shop/carts/current-cart-token",
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
+
+    EVENT_COPY: 'copy',
+    EVENT_CLEAR_CART: 'clear_cart',
+    EVENT_PAGE_SPEED_GT: 'gtmetrix',
+    EVENT_PAGE_SPEED_GG: 'google',
+    EVENT_PARAM_DEBUG: 'sbase_debug',
+    EVENT_PARAM_CSR: 'render_csr',
+    EVENT_URL_BOOTSTRAP: 'bootstrap',
+    EVENT_URL_PRODUCT_SINGLE: 'product_single',
+    EVENT_URL_PRODUCT_LIST: 'product_list',
+    EVENT_URL_COLLECTION_SINGLE: 'collection_single',
+    EVENT_URL_COLLECTION_LIST: 'collection_list',
+
 }
 
 
@@ -177,7 +190,6 @@ function addDebugPanel() {
     console.log('Generate debug panel')
 
 
-
     const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:50px; left:50px;  width: 600px; height: 800px; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
     <iframe id="myframe" style="width:100%; height: 100%">
@@ -189,7 +201,48 @@ function addDebugPanel() {
     $('body').append(html);
 
     bindEvent(window, 'message', function (e) {
-        utils.sflog("Receive msg: ", e)
+        const rawMsg = e.data;
+        if (!rawMsg) {
+            return
+        }
+
+        const msg = utils.parseJSON(rawMsg);
+        if (!msg) {
+            return
+        }
+
+        const name = msg.name;
+        const data = msg.data;
+        if (!msg.name) {
+            return
+        }
+
+        switch (name) {
+            case SF_CONST.EVENT_COPY:
+                utils.copyToClipboard(data);
+                utils.show_notify('Copied to clipboard', 'OK', 'success');
+                break;
+            case SF_CONST.EVENT_CLEAR_CART:
+                storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
+                window.location.reload();
+                break;
+            case SF_CONST.EVENT_PAGE_SPEED_GG:
+                break;
+            case SF_CONST.EVENT_PARAM_DEBUG:
+                break;
+            case SF_CONST.EVENT_PARAM_CSR:
+                break;
+            case SF_CONST.EVENT_URL_BOOTSTRAP:
+                break;
+            case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
+                break;
+            case SF_CONST.EVENT_URL_PRODUCT_LIST:
+                break;
+            case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
+                break;
+            case SF_CONST.EVENT_URL_COLLECTION_LIST:
+                break;
+        }
     });
 
     let script = `
@@ -197,9 +250,11 @@ function addDebugPanel() {
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>
     <script>
         // Send a message to the parent
-        var sendMessage = function (msg) {
+        var sendMessage = function (name, data) {
             // Make sure you are sending a string, and to stringify JSON
-            window.parent.postMessage(msg, '*');
+            const msg = {name: name, data: data}
+            const sendMsg = JSON.stringify(msg);
+            window.parent.postMessage(sendMsg, '*');
         };
     
     </s` + `cript>`
@@ -248,19 +303,19 @@ function addDebugPanel() {
                     </thead>
 
                     <tbody>
-                    <tr onclick="sendMessage('${SF_VAR.shop_id}')">
+                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
                         <td>Shop id</td>
                         <td>${SF_VAR.shop_id}</td>
                     </tr>
-                    <tr>
+                    <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
                         <td>${SF_VAR.page_type}</td>
                         <td>${SF_VAR.page_id}</td>
                     </tr>
-                    <tr>
+                    <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
                         <td>Cart token</td>
                         <td>${SF_VAR.cart_token}</td>
                     </tr>
-                    <tr>
+                    <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
                         <td>Checkout token</td>
                         <td>${SF_VAR.checkout_token}</td>
                     </tr>
@@ -280,7 +335,7 @@ function addDebugPanel() {
                             Clear things
                         </td>
                         <td>
-                            <button class="btn btn-danger">
+                            <button class="btn btn-danger"  onclick="sendMessage('${SF_CONST.EVENT_CLEAR_CART}', '${SF_VAR.cart_token}')">
                                 <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
                                 Clear cart
                             </button>
@@ -422,7 +477,7 @@ function keydown(evt) {
 }
 
 function bindEvent(element, eventName, eventHandler) {
-    if (element.addEventListener){
+    if (element.addEventListener) {
         element.addEventListener(eventName, eventHandler, false);
     } else if (element.attachEvent) {
         element.attachEvent('on' + eventName, eventHandler);
