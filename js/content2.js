@@ -25,6 +25,17 @@ let SF_VAR = {
     checkout_token: ''
 }
 
+const SF_CONST = {
+    NOT_SF: "-99",
+    NOT_KNOWN_PAGE: "not_known",
+
+    KEY_SHOP_ID: "shop_id",
+    KEY_IS_SF: "is_sf",
+    KEY_PLATFORM_DOMAIN: "platform_domain",
+    KEY_CART_TOKEN: "shop/carts/current-cart-token",
+    KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
+}
+
 
 utils.sflog('Starting')
 
@@ -33,24 +44,143 @@ startApplication();
 
 async function startApplication() {
     // Get from cache
+    getFromCache()
+    if (SF_VAR.sf === SF_CONST.NOT_SF) {
+        return
+    }
 
-    // If not ok, request boostrap, set to cache: {sf_is_sf:false, shop_id: 0}
+    // If not ok, request boostrap
+    if (!SF_VAR.shop_id) {
+        await getBootstrap();
+        if (SF_VAR.sf === SF_CONST.NOT_SF) {
+            return
+        }
+    }
 
-    // Get page info from cache: type, id, handle
+    if (!SF_VAR.page_type) {
+        await getPageInfo();
+    }
 
-    // Get basic information: cart_token, checkout token
 
     // Build debug panel
     addIcon();
     addDebugPanel();
 
 
+    // Bind events
+    let sfToolIcon = document.getElementById('sf-tool-icon');
+    let sfDebugBar = document.getElementById('sf-debug-bar');
+
+    sfToolIcon.onclick = function () {
+        sfToggleDebugBar();
+    };
+    sfDebugBar.onclick = function () {
+        sfToggleDebugBar();
+    };
+
+    document.onkeydown = keydown;
+
 }
 
-function addDebugPanel(){
+async function getPageInfo() {
+    const pathName = location.pathname;
+    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+        SF_VAR.page_type = 'Product';
+        SF_VAR.handle = pathName.split('products/')[1];
+        const url = utils.getProductSingleUrl(SF_VAR.handle)
+        sfPageObject = await doAjax(url)
+        SF_VAR.page_id = sfPageObject ? sfPageObject.id : 0
+        console.log('Product page: ', sfPageId)
+        return
+    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+        SF_VAR.page_type = 'Collection';
+        SF_VAR.handle = pathName.split('collections/')[1];
 
-    const rawHTML = `<div id="sbase-debug-sidebar" style="position:fixed; bottom:50px; right:50px;  border: 0; background-color: lightblue; ">
-    <iframe id="myframe" style="width: 500px; height: 800px; border: 0">
+        const url = utils.getCollectionSingleUrl(SF_VAR.handle)
+        sfPageObject = await doAjax(url)
+        sfPageObject = (sfPageObject && sfPageObject.collections && sfPageObject.collections.length > 0) ? sfPageObject.collections[0] : {id: 0}
+        SF_VAR.page_id = sfPageObject.id
+        utils.sflog('Collection page: ', SF_VAR.page_id)
+
+    } else {
+        SF_VAR.page_type = "NOT_KNOWN_PAGE"
+        SF_VAR.page_id = "0"
+    }
+
+
+    // Set cache
+    storage.set(pathName, `${SF_VAR.page_type};${SF_VAR.page_id}`)
+
+}
+
+function getFromCache() {
+    SF_VAR.sf = storage.get(SF_CONST.KEY_IS_SF)
+    SF_VAR.shop_id = storage.get(SF_CONST.KEY_SHOP_ID)
+    SF_VAR.domain = storage.get(SF_CONST.KEY_PLATFORM_DOMAIN)
+
+    // Get page type
+    const pathName = location.pathname;
+    const rawData = storage.get(pathName)
+    if (rawData && rawData.length && rawData.split(';').length === 2) {
+        const data = rawData.split(';')
+        SF_VAR.page_type = data[0];
+        SF_VAR.page_id = data[1];
+        utils.sflog('Cache page OK')
+    }
+
+    // Get tokens
+    const regex = /"/gi
+    SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+    if (SF_VAR.cart_token) {
+        SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
+    }
+    SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+    if (SF_VAR.checkout_token) {
+        SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+    }
+}
+
+async function getBootstrap() {
+    let url = utils.getBootstrapUrl();
+    let bootstrap = await doAjax(url)
+    sfBootstrap = utils.parseBootstrap(bootstrap);
+    SF_VAR.shop_id = sfBootstrap.shop_id;
+    SF_VAR.domain = sfBootstrap.platform_domain;
+
+    if (sfBootstrap.shop_id === 0) {
+        storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
+        SF_VAR.sf = SF_CONST.NOT_SF
+    }
+}
+
+function addIcon() {
+    console.log('Generate icon');
+    const rawHtml = `<div id="sf-tool-icon" style="position:fixed;
+    width:60px;
+    height:60px;
+    bottom:40px;
+    left:40px;
+    background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
+    background-size: contain;
+    color:#FFF;
+    border-radius:50px;
+    text-align:center;
+    box-shadow: 2px 2px 3px #999;
+    z-index: 999999;">
+    </div>`
+    const html = $.parseHTML(rawHtml);
+
+    $('body').append(html);
+}
+
+function addDebugPanel() {
+    console.log('Generate debug panel')
+
+
+
+    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:50px; left:50px;  width: 600px; height: 800px; overflow: hidden; z-index: 99999999">
+    <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
+    <iframe id="myframe" style="width:100%; height: 100%">
 
     </iframe>
 </div>`
@@ -58,9 +188,21 @@ function addDebugPanel(){
 
     $('body').append(html);
 
+    bindEvent(window, 'message', function (e) {
+        utils.sflog("Receive msg: ", e)
+    });
+
     let script = `
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></s` + `cript>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>`
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>
+    <script>
+        // Send a message to the parent
+        var sendMessage = function (msg) {
+            // Make sure you are sending a string, and to stringify JSON
+            window.parent.postMessage(msg, '*');
+        };
+    
+    </s` + `cript>`
 
 
     let rawHTML2 = `<!DOCTYPE html>
@@ -75,544 +217,214 @@ function addDebugPanel(){
 
 <link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">
 <style>
-    .mp-panel-menu.panel-body {
-        padding: 0
-    }
-
-    .panel-heading a {
-        color: #fff;
-    }
-
-    .mp-padding-10 {
-        padding: 10px;
-    }
-
-    .sf-float {
-        position: fixed;
-        width: 60px;
-        height: 60px;
-        bottom: 40px;
-        left: 40px;
-        background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
-        background-size: contain;
-        color: #FFF;
-        border-radius: 50px;
-        text-align: center;
-        box-shadow: 2px 2px 3px #999;
-    }
+    
 </style>
 
 </head>
 <body>
-<div class="container">
-    <h1>Hello world</h1>
-</div>
+<!--Start body-->
+    <!--Start static panel-->
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <i class="fa fa-bug"> </i>
+            <span class="mp-menu-text">Debug theo cách của bạn và fix theo cách của chúng tôi</span>
+        </div>
+        <div class="mp-panel-menu panel-body">
+            <div class="mp-padding-10">
+                <h3 class="text-danger">
+                    <button class="btn">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                    Thông tin cơ bản (click để copy)
+
+                </h3>
+
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th>Loại thông tin</th>
+                        <th>Giá trị</th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    <tr onclick="sendMessage('${SF_VAR.shop_id}')">
+                        <td>Shop id</td>
+                        <td>${SF_VAR.shop_id}</td>
+                    </tr>
+                    <tr>
+                        <td>${SF_VAR.page_type}</td>
+                        <td>${SF_VAR.page_id}</td>
+                    </tr>
+                    <tr>
+                        <td>Cart token</td>
+                        <td>${SF_VAR.cart_token}</td>
+                    </tr>
+                    <tr>
+                        <td>Checkout token</td>
+                        <td>${SF_VAR.checkout_token}</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="text-danger">
+                    <button class="btn">
+                        <i class="fa fa-wrench"></i>
+                    </button>
+                    Tools
+                </h3>
+                <table class="table table-hover">
+                    <tbody>
+                    <tr>
+                        <td>
+                            Clear things
+                        </td>
+                        <td>
+                            <button class="btn btn-danger">
+                                <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
+                                Clear cart
+                            </button>
+                            <button class="btn btn-danger">
+                                <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                                Clear FS
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Page speed</td>
+                        <td>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-motorcycle" aria-hidden="true"></i>
+                                Gtmetrix
+                            </button>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-google" aria-hidden="true"></i>
+                                Google
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Params</td>
+                        <td>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-bug" aria-hidden="true"></i>
+                                Sbase debug
+                            </button>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-spinner" aria-hidden="true"></i>
+                                Render csr
+                            </button>
+                        </td>
+                    </tr>
+
+                    </tbody>
+                </table>
+
+                <h3 class="text-danger">
+                    <button class="btn">
+                        <i class="fa fa-link"></i>
+                    </button>
+                    Quick URLs
+                </h3>
+                <table class="table table-hover">
+                    <tbody>
+                    <tr>
+                        <td>
+                            Bootstrap
+                        </td>
+                        <td>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-info-circle" aria-hidden="true"></i>
+                                Bootstrap
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Product</td>
+                        <td>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-cube" aria-hidden="true"></i>
+                                Product single
+                            </button>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-cubes" aria-hidden="true"></i>
+                                Product list
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Collection</td>
+                        <td>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-object-group" aria-hidden="true"></i>
+                                Collection single
+                            </button>
+                            <button class="btn btn-primary">
+                                <i class="fa fa-object-group" aria-hidden="true"></i>
+                                Collection list
+                            </button>
+                        </td>
+                    </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+            <!--End static panel-->
+    <!--End body-->
+
+    <!--Start footer-->
+    <div class="row">
+    </div>
+    <!--End footer-->
 </body>
 </html>
 `;
-
-    document.getElementById('myframe').contentWindow.document.write(rawHTML2);
+    const doc = document.getElementById('myframe').contentWindow.document;
+    doc.write(rawHTML2);
+    doc.close();
 }
 
-async function detectPageType() {
-    const pathName = location.pathname;
+function sfToggleDebugBar() {
+    let sfToolIcon = document.getElementById('sf-tool-icon');
+    let sfDebugBar = document.getElementById('sf-debug-bar');
 
-    // Get cache
-    const cacheKey = `${pathName}`
-    const rawData = storage.get(cacheKey)
-    if (rawData && rawData.length && rawData.split(';').length === 2) {
-        const data = rawData.split(';')
-        sfPageType = data[0];
-        sfPageId = data[1];
-        utils.sflog('Cache page OK')
-        return
-    }
+    console.log('toggle debug bar now')
+    if (SF_VAR.debug_open) {
+        SF_VAR.debug_open = false;
 
-    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
-        sfPageType = 'Product';
-        sfPageHandle = pathName.split('products/')[1];
-        const url = utils.getProductSingleUrl(sfPageHandle)
-        sfPageObject = await doAjax(url)
-        sfPageId = sfPageObject ? sfPageObject.id : 0
-        console.log('Product page: ', sfPageId)
-
-        // Set cache
-        storage.set(cacheKey, `${sfPageType};${sfPageId}`)
-        return
-    }
-
-    if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
-        sfPageType = 'Collection';
-        sfPageHandle = pathName.split('collections/')[1];
-
-        const url = utils.getCollectionSingleUrl(sfPageHandle)
-        sfPageObject = await doAjax(url)
-        sfPageObject = (sfPageObject && sfPageObject.collections && sfPageObject.collections.length > 0) ? sfPageObject.collections[0] : {id: 0}
-        sfPageId = sfPageObject.id
-        console.log('Collection page: ', sfPageId)
-        // Set cache
-        storage.set(cacheKey, `${sfPageType};${sfPageId}`)
-    }
-}
-
-function addIcon() {
-    console.log('Generate icon');
-    const rawHtml = `<div id="sf-tool-icon" class="sf-float">
-    </div>`
-    const html = $.parseHTML(rawHtml);
-
-    $('body').append(html);
-}
-
-async function addDebugBar() {
-    // Add debug bar
-    const debugBar = document.createElement('div')
-    debugBar.setAttribute('id', 'sbase-debug-sidebar')
-    debugBar.setAttribute('class', 'debug-sidebar')
-    document.body.appendChild(debugBar)
-
-    // Add hide bar button
-    const hideButton = document.createElement('button')
-    hideButton.innerHTML = 'Hide bar'
-    hideButton.id = 'bk_hide_bar'
-    hideButton.setAttribute('class', 'bkbtn bkthird')
-    debugBar.appendChild(hideButton)
-    hideButton.onclick = toggleDebugBar
-
-    // Set location to old
-    let oldLocation = localStorage.getItem('sbase-debugbar-location')
-    if (oldLocation) {
-        moveDebugBar(debugBar, oldLocation)
-    }
-
-    // Move left - right - up - down
-    const moveLeftButton = document.createElement('button')
-    moveLeftButton.innerHTML = '←'
-    moveLeftButton.id = 'btnMoveLeft'
-    moveLeftButton.setAttribute('class', 'bkbtn-mini bkthird')
-    moveLeftButton.onclick = function () {
-        moveDebugBar(debugBar, 'left');
-    };
-    debugBar.appendChild(moveLeftButton);
-
-    const moveRightButton = document.createElement('button')
-    moveRightButton.innerHTML = '→'
-    moveRightButton.id = 'btnMoveRight'
-    moveRightButton.setAttribute('class', 'bkbtn-mini bkthird')
-    moveRightButton.onclick = function () {
-        moveDebugBar(debugBar, 'right');
-    };
-    debugBar.appendChild(moveRightButton);
-
-    const moveUpButton = document.createElement('button')
-    moveUpButton.innerHTML = '↑'
-    moveUpButton.id = 'btnMoveUp'
-    moveUpButton.setAttribute('class', 'bkbtn-mini bkthird')
-    moveUpButton.onclick = function () {
-        moveDebugBar(debugBar, 'up');
-    };
-    debugBar.appendChild(moveUpButton);
-
-    const moveDownButton = document.createElement('button')
-    moveDownButton.innerHTML = '↓'
-    moveDownButton.id = 'btnMoveDown'
-    moveDownButton.setAttribute('class', 'bkbtn-mini bkthird')
-    moveDownButton.onclick = function () {
-        moveDebugBar(debugBar, 'down');
-    };
-    debugBar.appendChild(moveDownButton);
-
-    // Information bar
-    const informationText = document.createElement('p');
-    informationText.setAttribute('class', 'text-heading')
-    informationText.innerText = 'Information';
-    debugBar.appendChild(informationText);
-
-    const reloadButton = document.createElement('button')
-    reloadButton.innerHTML = `Reload`;
-    reloadButton.id = 'btn_reload';
-    reloadButton.setAttribute('class', 'bkbtn bkthird')
-    reloadButton.onclick = async function () {
-        // reload information
-        await detectPageType();
-
-        if (sfPageType && sfPageType.length > 0) {
-            let pageTypeButton = document.getElementById('btn_page_type')
-
-            let isNeedInsert = false;
-            if (!pageTypeButton) {
-                pageTypeButton = document.createElement('button')
-                pageTypeButton.id = 'btn_page_type';
-                isNeedInsert = true
-            }
-
-            pageTypeButton.innerHTML = `${sfPageType}: ${sfPageId}`;
-            pageTypeButton.onclick = function () {
-                utils.copyToClipboard(`${sfPageId}`)
-            };
-
-            if (isNeedInsert) {
-                const shopIdButton = document.getElementById('btn_shop_id')
-                shopIdButton.parentNode.insertBefore(pageTypeButton, shopIdButton.nextSibling)
-            }
-        }
-
-        // Reload cart token
-        sfCartToken = storage.getOrigin('shop/carts/current-cart-token')
-        if (sfCartToken) {
-            sfCartToken = sfCartToken.replace('"', '').replace('"', '');
-        }
-        let cartTokenBtn = document.getElementById('btn_cart_token')
-        if (cartTokenBtn) {
-            cartTokenBtn.innerText = `Cart token: ${sfCartToken}`
-        }
-    };
-    debugBar.appendChild(reloadButton)
-
-    const shopIdButton = document.createElement('button')
-    shopIdButton.innerHTML = `Shop id: ${sfShopId}`;
-    shopIdButton.id = 'btn_shop_id';
-    shopIdButton.setAttribute('class', 'bkbtn bkthird')
-    shopIdButton.onclick = function () {
-        utils.copyToClipboard(`${sfShopId}`)
-    };
-    debugBar.appendChild(shopIdButton)
-
-    if (sfPageType && sfPageType.length > 0) {
-        const pageTypeButton = document.createElement('button')
-        pageTypeButton.innerHTML = `${sfPageType}: ${sfPageId}`;
-        pageTypeButton.id = 'btn_page_type';
-        pageTypeButton.setAttribute('class', 'bkbtn bkthird')
-        pageTypeButton.onclick = function () {
-            utils.copyToClipboard(`${sfPageId}`)
-        };
-        debugBar.appendChild(pageTypeButton)
-    }
-
-    if (sfPlatformDomain && sfPlatformDomain.length) {
-        const platformDomainBtn = document.createElement('button')
-        platformDomainBtn.innerHTML = `Platform domain: ${sfPlatformDomain}`;
-        platformDomainBtn.id = 'btn_platform_domain';
-        platformDomainBtn.setAttribute('class', 'bkbtn bkthird')
-        platformDomainBtn.onclick = function () {
-            utils.copyToClipboard(`${sfPlatformDomain}`)
-        };
-        debugBar.appendChild(platformDomainBtn)
-    }
-
-    if (sfCartToken) {
-        const cartTokenBtn = document.createElement('button')
-        cartTokenBtn.innerHTML = `Cart token: ${sfCartToken}`;
-        cartTokenBtn.id = 'btn_cart_token';
-        cartTokenBtn.setAttribute('class', 'bkbtn bkthird')
-        cartTokenBtn.onclick = function () {
-            utils.copyToClipboard(`${sfCartToken}`)
-        };
-        debugBar.appendChild(cartTokenBtn)
-    }
-
-    if (sfCheckoutToken) {
-        const checkoutTokenBtn = document.createElement('button')
-        checkoutTokenBtn.innerHTML = `Checkout token: ${sfCheckoutToken}`;
-        checkoutTokenBtn.id = 'btn_checkout_token';
-        checkoutTokenBtn.setAttribute('class', 'bkbtn bkthird')
-        checkoutTokenBtn.onclick = function () {
-            utils.copyToClipboard(`${sfCheckoutToken}`)
-        };
-        debugBar.appendChild(checkoutTokenBtn)
-    }
-
-    // Tool bar
-    const toolText = document.createElement('p');
-    toolText.setAttribute('class', 'text-heading')
-    toolText.innerText = 'Tool';
-    debugBar.appendChild(toolText);
-
-    const clearCartBtn = document.createElement('button')
-    clearCartBtn.innerHTML = `Clear cart`;
-    clearCartBtn.id = 'sf_btn_clear_cart';
-    clearCartBtn.setAttribute('class', 'bkbtn bkthird')
-    clearCartBtn.onclick = function () {
-        storage.setOrigin('shop/carts/current-cart-token', null)
-        window.location.reload();
-    };
-    debugBar.appendChild(clearCartBtn)
-
-    // gt metrix page speed
-    const gtMetrixForm = document.createElement('form')
-    gtMetrixForm.method = 'post'
-    gtMetrixForm.action = 'https://gtmetrix.com/analyze.html';
-    gtMetrixForm.target = 'TheWindow'
-    gtMetrixForm.id = 'sf_gt_metrix_form';
-
-    const urlInput = document.createElement('input');
-    urlInput.type = 'hidden';
-    urlInput.value = window.location.href;
-    urlInput.name = 'url';
-
-    gtMetrixForm.appendChild(urlInput);
-    debugBar.appendChild(gtMetrixForm)
-    const gtMetrixBtn = document.createElement('button')
-    gtMetrixBtn.innerHTML = `GtMetrix page speed`;
-    gtMetrixBtn.id = 'sf_btn_gt_metrix';
-    gtMetrixBtn.setAttribute('class', 'bkbtn bkthird')
-    gtMetrixBtn.onclick = function () {
-        window.open('', 'TheWindow');
-        gtMetrixForm.submit();
-    };
-    debugBar.appendChild(gtMetrixBtn)
-
-
-    // google page speed
-    const ggPageSpeedBtn = document.createElement('button')
-    ggPageSpeedBtn.innerHTML = `Google page speed`;
-    ggPageSpeedBtn.id = 'sf_btn_google_page_speed';
-    ggPageSpeedBtn.setAttribute('class', 'bkbtn bkthird')
-    ggPageSpeedBtn.onclick = function () {
-        const url = window.location.href;
-        window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
-    };
-    debugBar.appendChild(ggPageSpeedBtn)
-
-
-    // Quick url
-    const quickUrlText = document.createElement('p');
-    quickUrlText.setAttribute('class', 'text-heading')
-    quickUrlText.innerText = 'Quick url';
-    debugBar.appendChild(quickUrlText);
-
-    const bootstrapButton = document.createElement('button')
-    bootstrapButton.innerHTML = 'Bootstrap';
-    bootstrapButton.id = 'btn_bootstrap';
-    bootstrapButton.setAttribute('class', 'bkbtn bkthird')
-    bootstrapButton.onclick = function () {
-        openBootstrap();
-    };
-    debugBar.appendChild(bootstrapButton)
-
-    const productSingleButton = document.createElement('button')
-    productSingleButton.innerHTML = 'Product single'
-    productSingleButton.id = 'btn_product_single'
-    productSingleButton.setAttribute('class', 'bkbtn bkthird')
-    productSingleButton.onclick = function () {
-        openProductSingle();
-    };
-    debugBar.appendChild(productSingleButton)
-
-    const collectionSingleButton = document.createElement('button')
-    collectionSingleButton.innerHTML = 'Collection single'
-    collectionSingleButton.id = 'btn_collection_single'
-    collectionSingleButton.setAttribute('class', 'bkbtn bkthird')
-    collectionSingleButton.onclick = function () {
-        openCollectionSingle();
-    };
-    debugBar.appendChild(collectionSingleButton)
-
-    const collectionsButton = document.createElement('button')
-    collectionsButton.innerHTML = 'Collections'
-    collectionsButton.id = 'btn_open_collection'
-    collectionsButton.setAttribute('class', 'bkbtn bkthird')
-    collectionsButton.onclick = function () {
-        openCollections();
-    };
-    debugBar.appendChild(collectionsButton)
-
-    const collectionAll = document.createElement('button')
-    collectionAll.innerHTML = 'Collection all'
-    collectionAll.id = 'btn_collection_all'
-    collectionAll.setAttribute('class', 'bkbtn bkthird')
-    collectionAll.onclick = function () {
-        openCollectionAll();
-    };
-    debugBar.appendChild(collectionAll)
-
-
-    // Params bar
-    const paramText = document.createElement('p');
-    paramText.setAttribute('class', 'text-heading')
-    paramText.innerText = 'Param';
-    debugBar.appendChild(paramText);
-
-    const skipCacheButton = document.createElement('button')
-    skipCacheButton.innerHTML = 'Skip cache'
-    skipCacheButton.id = 'btn_skip_cache'
-    skipCacheButton.setAttribute('class', 'bkbtn bkthird')
-    skipCacheButton.onclick = function () {
-        addParamSkipCache();
-    };
-    debugBar.appendChild(skipCacheButton)
-
-    const renderCsrButton = document.createElement('button')
-    renderCsrButton.innerHTML = 'Render csr'
-    renderCsrButton.id = 'btn_render_csr'
-    renderCsrButton.setAttribute('class', 'bkbtn bkthird')
-    renderCsrButton.onclick = function () {
-        addParamRenderClientSide();
-    };
-    debugBar.appendChild(renderCsrButton)
-
-
-    const sbaseDebugButton = document.createElement('button')
-    sbaseDebugButton.innerHTML = 'SbaseDebug';
-    sbaseDebugButton.id = 'btn_sbase_debug';
-    sbaseDebugButton.setAttribute('class', 'bkbtn bkthird')
-    sbaseDebugButton.onclick = function () {
-        addParamSbaseDebug();
-    };
-    debugBar.appendChild(sbaseDebugButton)
-}
-
-function getFromCache() {
-    sfShopId = storage.get('shop_id')
-    if (sfShopId && !sfShopId.length) {
-        utils.sflog('Cache empty')
-        return {
-            shop_id: 0,
-            ok: false,
-            platformDomain: ''
-        }
-    }
-
-    const shopId = parseInt(sfShopId)
-    if (shopId > 0) {
-        utils.sflog('Cache OK')
-        return {
-            shop_id: shopId,
-            ok: true,
-            platformDomain: storage.get('platform_domain')
-        }
-    }
-
-    return {
-        shop_id: 0,
-        ok: false,
-        platformDomain: ''
-    }
-}
-
-async function getShopId() {
-    let url = utils.getBootstrapUrl();
-    let bootstrap = await doAjax(url)
-    sfBootstrap = utils.parseBootstrap(bootstrap);
-
-    return {shop_id: sfBootstrap.shop_id, platform_domain: sfBootstrap.platform_domain}
-}
-
-function toggleDebugBar() {
-    const debugBar = document.getElementById('sbase-debug-sidebar')
-    const iconButton = document.getElementById('sf-tool-icon')
-    if (isDebugBarOpen) {
-        isDebugBarOpen = false
-        debugBar.style.height = '0';
-        debugBar.style.width = '0';
-        iconButton.style.display = 'block';
-
+        sfDebugBar.style.display = 'none';
+        sfToolIcon.style.width = '60px';
+        sfToolIcon.style.height = '60px';
     } else {
-        isDebugBarOpen = true
-        debugBar.style.height = '100%';
-        debugBar.style.width = '500px';
-        iconButton.style.display = 'none';
+        SF_VAR.debug_open = true;
+        sfDebugBar.style.display = 'block';
+        sfToolIcon.style.width = '0px';
+        sfToolIcon.style.height = '0px';
     }
 }
-
-function moveDebugBar(debugBar, direction) {
-    switch (direction) {
-        case 'left':
-            debugBar.style.right = null;
-            debugBar.style.left = '0';
-
-            break;
-        case 'right':
-            debugBar.style.right = '0';
-            debugBar.style.left = null;
-            break;
-        case 'down':
-            debugBar.style.bottom = '10px';
-            debugBar.style.top = 'inherit';
-            break;
-        case 'up':
-            debugBar.style.top = '10px';
-            debugBar.style.bottom = 'inherit';
-            break;
-        default:
-            utils.sflog(`Location is not valid`)
-            return
-    }
-
-    localStorage.setItem('sbase-debugbar-location', direction);
-}
-
-function openBootstrap() {
-    window.open(utils.getBootstrapUrl());
-}
-
-function addParamSkipCache() {
-    const url = new URL(window.location.href);
-    url.searchParams.append('is_skip_cache', true);
-    url.searchParams.append('is_delete_cache', true);
-    url.searchParams.append('skip_cache', true);
-    window.location.href = url.href;
-}
-
-function addParamRenderClientSide() {
-    const url = new URL(window.location.href);
-    url.searchParams.append('sbase_debug', 1);
-    url.searchParams.append('render_csr', 1);
-    window.location.href = url.href;
-}
-
-function addParamSbaseDebug() {
-    const url = new URL(window.location.href);
-    url.searchParams.append('sbase_debug', 1);
-    window.location.href = url.href;
-}
-
-function openProductSingle() {
-    let currentPath = window.location.pathname;
-    let paths = currentPath.split('/products/');
-    let defaultHandle = '';
-    if (paths && paths.length == 2) {
-        defaultHandle = paths[1];
-    }
-
-    let url = `${window.location.origin}/api/catalog/product.json?handle=${defaultHandle}`;
-    window.open(url);
-}
-
-function openCollectionSingle() {
-    let currentPath = window.location.pathname;
-    let paths = currentPath.split('/collections/');
-    let defaultHandle = '';
-    if (paths && paths.length == 2) {
-        defaultHandle = paths[1];
-    }
-
-    let url = `${window.location.origin}/api/catalog/collections_v2.json?handles=${defaultHandle}`;
-    window.open(url);
-}
-
-function openCollections() {
-    let url = `${window.location.origin}/collections`;
-    window.open(url);
-}
-
-function openCollectionAll() {
-    let url = `${window.location.protocol}//${window.location.hostname}/collections/all`;
-    window.open(url);
-}
-
-document.onkeydown = keydown;
 
 function keydown(evt) {
-    if (!isSF) {
+    if (!(evt.ctrlKey && evt.altKey && evt.keyCode === 88)) { //CTRL+ALT+X
+        return
+    }
+
+    if (!SF_VAR.sf) {
         utils.sflog('Force storefront :nhin_scare:')
-        // addDebugBar();
-        isSF = true
+        addIcon();
+        addDebugPanel();
+        SF_VAR.sf = true
     }
 
     if (!evt) evt = event;
-    if (evt.ctrlKey && evt.altKey && evt.keyCode == 88) { //CTRL+ALT+X
-        toggleDebugBar()
-    }
+    sfToggleDebugBar()
+}
 
+function bindEvent(element, eventName, eventHandler) {
+    if (element.addEventListener){
+        element.addEventListener(eventName, eventHandler, false);
+    } else if (element.attachEvent) {
+        element.attachEvent('on' + eventName, eventHandler);
+    }
 }

@@ -118,17 +118,17 @@ const utils = {
 }
 
 const storage = {
-    get: (e) => {
-        let key = `sfpower-${e}`;
+    get: (key, prefix = true) => {
+        if (prefix) {
+            key = `sfpower-${key}`;
+        }
         return localStorage.getItem(key);
     },
-    set: (e, value) => {
-        let key = `sfpower-${e}`;
+    set: (key, value, prefix = true) => {
+        if (prefix) {
+            key = `sfpower-${key}`;
+        }
         localStorage.setItem(key, value)
-    }, getOrigin: (e) => {
-        return localStorage.getItem(e);
-    }, setOrigin: (k, v) => {
-        localStorage.setItem(k, v)
     }
 }
 

@@ -11,25 +11,19 @@
     "128": "icons/128.png"
   },
   "permissions": [
-
   ],
   "browser_action": {
     "default_title": "SF Power",
     "default_popup": "pages/popup.html"
   },
-
   "content_scripts": [
     {
       "js": [
         "js/libs/jquery-3.3.1.min.js",
-        "js/libs/pnotify.custom.min.js",
         "js/utils.js",
         "js/content2.js"
       ],
       "css": [
-        "css/bootstrap.min.css",
-        "css/content.css",
-        "css/pnotify.custom.min.css"
       ],
       "run_at": "document_end",
       "matches": [
