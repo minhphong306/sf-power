@@ -1,16 +1,8 @@
 'use strict'
-var isDebugBarOpen = false
-var isSF = false
+
 let sfBootstrap;
-let sfShopId = 0;
-let sfPlatformDomain = '';
-let sfPageType = '';
-let sfPageHandle = '';
 let sfPageId = 0;
 let sfPageObject = {};
-let sfCartToken = '';
-let sfCheckoutToken = '';
-let isDragging = false;
 
 let SF_VAR = {
     debug_open: false,
@@ -19,6 +11,7 @@ let SF_VAR = {
     shop_id: 0,
     domain: '',
     page_id: 0,
+    gtmetrix_index: 0,
     page_type: '',
     handle: '',
     cart_token: '',
@@ -74,11 +67,9 @@ async function startApplication() {
         await getPageInfo();
     }
 
-
     // Build debug panel
     addIcon();
     addDebugPanel();
-
 
     // Bind events
     let sfToolIcon = document.getElementById('sf-tool-icon');
@@ -190,7 +181,7 @@ function addDebugPanel() {
     console.log('Generate debug panel')
 
 
-    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:50px; left:50px;  width: 600px; height: 800px; overflow: hidden; z-index: 99999999">
+    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; left:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
     <iframe id="myframe" style="width:100%; height: 100%">
 
@@ -217,6 +208,9 @@ function addDebugPanel() {
             return
         }
 
+        const url = window.location.href;
+        const urlObj = new URL(window.location.href);
+
         switch (name) {
             case SF_CONST.EVENT_COPY:
                 utils.copyToClipboard(data);
@@ -226,21 +220,34 @@ function addDebugPanel() {
                 storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
                 window.location.reload();
                 break;
+            case SF_CONST.EVENT_PAGE_SPEED_GT:
+                openGtmetrixPs();
+                break;
             case SF_CONST.EVENT_PAGE_SPEED_GG:
+                window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
                 break;
             case SF_CONST.EVENT_PARAM_DEBUG:
+                urlObj.searchParams.append('sbase_debug', 1);
+                window.location.href = urlObj.href;
                 break;
             case SF_CONST.EVENT_PARAM_CSR:
+                urlObj.searchParams.append('render_csr', 1);
+                window.location.href = urlObj.href;
                 break;
             case SF_CONST.EVENT_URL_BOOTSTRAP:
+                window.open(utils.getBootstrapUrl());
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
+                window.open(`${window.location.origin}/api/catalog/product.json?handle=${SF_VAR.handle}`);
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_LIST:
+                window.open(`${window.location.origin}/collections/all`);
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
+                window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${SF_VAR.handle}`);
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_LIST:
+                window.open(`${window.location.origin}/api/catalog/collections_v2.json`);
                 break;
         }
     });
@@ -285,6 +292,9 @@ function addDebugPanel() {
             <span class="mp-menu-text">Debug theo cách của bạn và fix theo cách của chúng tôi</span>
         </div>
         <div class="mp-panel-menu panel-body">
+            <p class="bg bg-danger" style="padding: 10px; border-style: groove; border-radius: 10px;">
+             <i class="fa fa-info-circle"></i>
+             Tip: Sử dụng phím tắt Ctrl + Alt + X để ẩn/hiện debug bar</p>
             <div class="mp-padding-10">
                 <h3 class="text-danger">
                     <button class="btn">
@@ -339,20 +349,20 @@ function addDebugPanel() {
                                 <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
                                 Clear cart
                             </button>
-                            <button class="btn btn-danger">
-                                <i class="fa fa-file-text-o" aria-hidden="true"></i>
-                                Clear FS
-                            </button>
+<!--                            <button class="btn btn-danger">-->
+<!--                                <i class="fa fa-file-text-o" aria-hidden="true"></i>-->
+<!--                                Clear FS-->
+<!--                            </button>-->
                         </td>
                     </tr>
                     <tr>
                         <td>Page speed</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary"   onclick="sendMessage('${SF_CONST.EVENT_PAGE_SPEED_GT}', 'hihi')">
                                 <i class="fa fa-motorcycle" aria-hidden="true"></i>
                                 Gtmetrix
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_PAGE_SPEED_GG}', 'hihi')">
                                 <i class="fa fa-google" aria-hidden="true"></i>
                                 Google
                             </button>
@@ -361,11 +371,11 @@ function addDebugPanel() {
                     <tr>
                         <td>Params</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_PARAM_DEBUG}', 'hihi')">
                                 <i class="fa fa-bug" aria-hidden="true"></i>
                                 Sbase debug
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_PARAM_CSR}', 'hihi')">
                                 <i class="fa fa-spinner" aria-hidden="true"></i>
                                 Render csr
                             </button>
@@ -388,7 +398,7 @@ function addDebugPanel() {
                             Bootstrap
                         </td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_BOOTSTRAP}', 'hihi')">
                                 <i class="fa fa-info-circle" aria-hidden="true"></i>
                                 Bootstrap
                             </button>
@@ -397,11 +407,11 @@ function addDebugPanel() {
                     <tr>
                         <td>Product</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_PRODUCT_SINGLE}', 'hihi')">
                                 <i class="fa fa-cube" aria-hidden="true"></i>
                                 Product single
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_PRODUCT_LIST}', 'hihi')">
                                 <i class="fa fa-cubes" aria-hidden="true"></i>
                                 Product list
                             </button>
@@ -410,11 +420,11 @@ function addDebugPanel() {
                     <tr>
                         <td>Collection</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_COLLECTION_SINGLE}', 'hihi')">
                                 <i class="fa fa-object-group" aria-hidden="true"></i>
                                 Collection single
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_COLLECTION_LIST}', 'hihi')">
                                 <i class="fa fa-object-group" aria-hidden="true"></i>
                                 Collection list
                             </button>
@@ -439,6 +449,27 @@ function addDebugPanel() {
     const doc = document.getElementById('myframe').contentWindow.document;
     doc.write(rawHTML2);
     doc.close();
+}
+
+
+function openGtmetrixPs() {
+    const gtMetrixForm = document.createElement('form')
+    gtMetrixForm.method = 'post'
+    gtMetrixForm.action = 'https://gtmetrix.com/analyze.html';
+    gtMetrixForm.target = `TheWindow${SF_VAR.gtmetrix_index}`
+    gtMetrixForm.id = `sf_gt_metrix_form${SF_VAR.gtmetrix_index}`;
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'hidden';
+    urlInput.value = window.location.href;
+    urlInput.name = 'url';
+    gtMetrixForm.appendChild(urlInput);
+    document.body.appendChild(gtMetrixForm);
+
+    window.open('', `TheWindow${SF_VAR.gtmetrix_index}`);
+    gtMetrixForm.submit();
+
+    SF_VAR.gtmetrix_index++;
 }
 
 function sfToggleDebugBar() {
