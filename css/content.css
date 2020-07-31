@@ -1,8 +1,7 @@
 #sbase-debug-sidebar {
     overflow-x: hidden;: hidden;
-    background-color: #333;
-    width: 0;
-    height: 0;
+    /*background-color: #333;*/
+
     position: fixed;
     top: 0;
     margin-top: 10px;
@@ -12,10 +11,19 @@
     z-index: 9999;
 }
 
-/*.debug-element {*/
-    /*background-color: aqua;*/
-    /*margin: 10px;*/
-/*}*/
+.sf-float{
+    position:fixed;
+    width:60px;
+    height:60px;
+    bottom:40px;
+    left:40px;
+    background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
+    background-size: contain;
+    color:#FFF;
+    border-radius:50px;
+    text-align:center;
+    box-shadow: 2px 2px 3px #999;
+}
 
 .bkbtn {
     box-sizing: border-box;

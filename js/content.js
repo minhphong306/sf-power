@@ -10,6 +10,7 @@ let sfPageId = 0;
 let sfPageObject = {};
 let sfCartToken = '';
 let sfCheckoutToken = '';
+let isDragging = false;
 
 
 utils.sflog('Starting')
@@ -62,6 +63,7 @@ async function startApplication() {
 
     storage.set('shop_id', sfShopId)
     storage.set('platform_domain', sfPlatformDomain)
+    addIcon();
     await addDebugBar();
 }
 
@@ -104,6 +106,22 @@ async function detectPageType() {
         // Set cache
         storage.set(cacheKey, `${sfPageType};${sfPageId}`)
     }
+}
+
+function addIcon(){
+    const icon = document.createElement('div')
+    icon.setAttribute('id', 'sf-tool-icon')
+    icon.setAttribute('class', 'sf-float')
+    icon.onclick = function(){
+        setTimeout(function(){
+            if (!isDragging) {
+                toggleDebugBar();
+                isDragging = false;
+            }
+        }, 200)
+    }
+    utils.dragElement(icon, isDragging)
+    document.body.appendChild(icon)
 }
 
 async function addDebugBar() {
@@ -441,14 +459,19 @@ async function getShopId() {
 }
 
 function toggleDebugBar() {
+    const debugBar = document.getElementById('sbase-debug-sidebar')
+    const iconButton = document.getElementById('sf-tool-icon')
     if (isDebugBarOpen) {
         isDebugBarOpen = false
-        document.getElementById('sbase-debug-sidebar').style.height = '0';
-        document.getElementById('sbase-debug-sidebar').style.height = '0';
+        debugBar.style.height = '0';
+        debugBar.style.width = '0';
+        iconButton.style.display = 'block';
+
     } else {
         isDebugBarOpen = true
-        document.getElementById('sbase-debug-sidebar').style.height = '100%';
-        document.getElementById('sbase-debug-sidebar').style.width = '500px';
+        debugBar.style.height = '100%';
+        debugBar.style.width = '500px';
+        iconButton.style.display = 'none';
     }
 }
 
