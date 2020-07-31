@@ -45,7 +45,10 @@ const SF_CONST = {
     EVENT_URL_PRODUCT_SINGLE: 'product_single',
     EVENT_URL_PRODUCT_LIST: 'product_list',
     EVENT_URL_COLLECTION_SINGLE: 'collection_single',
+    EVENT_URL_PAGE_SINGLE: 'page_single',
     EVENT_URL_COLLECTION_LIST: 'collection_list',
+
+    ID_SF_TOOL_FRAME: 'sf_tool_iframe'
 
 }
 
@@ -113,6 +116,15 @@ async function getPageInfo() {
         SF_VAR.page_id = sfPageObject.id
         utils.sflog('Collection page: ', SF_VAR.page_id)
 
+    } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
+        SF_VAR.page_type = 'Page';
+        SF_VAR.handle = pathName.split('pages/')[1];
+
+        const url = utils.getPageSingleUrl(SF_VAR.handle)
+        sfPageObject = await doAjax(url)
+        sfPageObject = (sfPageObject && sfPageObject.page) ? sfPageObject.page : {id: 0}
+        SF_VAR.page_id = sfPageObject.id
+        utils.sflog('Page page: ', SF_VAR.page_id)
     } else {
         SF_VAR.page_type = "NOT_KNOWN_PAGE"
         SF_VAR.page_id = "0"
@@ -201,7 +213,7 @@ function addDebugPanel() {
 
     const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; left:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
-    <iframe id="myframe" style="width:100%; height: 100%">
+    <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%">
 
     </iframe>
 </div>`
@@ -221,6 +233,8 @@ function addDebugPanel() {
             pageHandle = pathName.split('products/')[1];
         } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
             pageHandle = pathName.split('collections/')[1];
+        } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
+            pageHandle = pathName.split('pages/')[1];
         }
 
         const msg = utils.parseJSON(rawMsg);
@@ -288,6 +302,13 @@ function addDebugPanel() {
                 }
                 window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${pageHandle}`);
                 break;
+            case SF_CONST.EVENT_URL_PAGE_SINGLE:
+                if (!pageHandle) {
+                    utils.show_notify('Not page page', 'Can\'t open page single url', 'warning')
+                    return
+                }
+                window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
+                break;
             case SF_CONST.EVENT_URL_COLLECTION_LIST:
                 window.open(`${window.location.origin}/collections`);
                 break;
@@ -304,7 +325,7 @@ function addDebugPanel() {
             const msg = {name: name, data: data}
             const sendMsg = JSON.stringify(msg);
             window.parent.postMessage(sendMsg, '*');
-        };
+        }; 
     
     </s` + `cript>`
 
@@ -484,6 +505,15 @@ function addDebugPanel() {
                             </button>
                         </td>
                     </tr>
+                    <tr>
+                        <td>Page</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_PAGE_SINGLE}', 'hihi')">
+                                <i class="fa fa-object-group" aria-hidden="true"></i>
+                                Page single
+                            </button>
+                        </td>
+                    </tr>
 
                     </tbody>
                 </table>
@@ -500,9 +530,16 @@ function addDebugPanel() {
 </body>
 </html>
 `;
-    const doc = document.getElementById('myframe').contentWindow.document;
+    const doc = document.getElementById(SF_CONST.ID_SF_TOOL_FRAME).contentWindow.document;
     doc.write(rawHTML2);
     doc.close();
+}
+
+function sendMessageToChild(name, data) {
+    const iframeEl = document.getElementById(SF_CONST.ID_SF_TOOL_FRAME);
+    const msg = {name: name, data: data}
+    const sendMsg = JSON.stringify(msg);
+    iframeEl.contentWindow.postMessage(sendMsg, '*');
 }
 
 
@@ -565,11 +602,18 @@ function sfToggleDebugBar() {
 }
 
 function listenUrlChange(event) {
-    const location = document.location;
+    var pushState = history.pushState;
+    history.pushState = function () {
+        pushState.apply(history, arguments);
 
-    // Product
+        // if not page, producct/ collection -> return
 
-    // Collection
+        // Get from cache
+
+        // request url
+
+        // Send msg to child
+    };
 }
 
 function keydown(evt) {

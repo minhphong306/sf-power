@@ -27,6 +27,8 @@ const utils = {
         return `${window.location.origin}/api/catalog/product.json?handle=${handle}`;
     }, getCollectionSingleUrl: (handle) => {
         return `${window.location.origin}/api/catalog/collections_v2.json?handles=${handle}`;
+    },getPageSingleUrl: (handle) => {
+        return `${window.location.origin}/api/pages.json?handle=${handle}`;
     }, parseBootstrap: (bootstrap) => {
         if (bootstrap && bootstrap.result) {
             return bootstrap.result;
