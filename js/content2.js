@@ -192,8 +192,8 @@ function addIcon() {
     const rawHtml = `<div id="sf-tool-icon" style="position:fixed;
     width:60px;
     height:60px;
-    bottom:40px;
-    left:40px;
+    bottom:85px;
+    right:30px;
     background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
     background-size: contain;
     color:#FFF;
@@ -211,7 +211,7 @@ function addDebugPanel() {
     console.log('Generate debug panel')
 
 
-    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; left:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
+    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; right:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
     <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%">
 
