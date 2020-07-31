@@ -6,8 +6,10 @@ let sfPageObject = {};
 
 let SF_VAR = {
     debug_open: false,
+    icon_display: true,
     sf: false,
     dragging: false,
+    user_id: 0,
     shop_id: 0,
     domain: '',
     page_id: 0,
@@ -15,7 +17,8 @@ let SF_VAR = {
     page_type: '',
     handle: '',
     cart_token: '',
-    checkout_token: ''
+    checkout_token: '',
+    access_token: '',
 }
 
 const SF_CONST = {
@@ -26,15 +29,19 @@ const SF_CONST = {
     KEY_IS_SF: "is_sf",
     KEY_PLATFORM_DOMAIN: "platform_domain",
     KEY_CART_TOKEN: "shop/carts/current-cart-token",
+    KEY_FEATURE_SWITCH: "sbase_feature_switch",
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
+    KEY_ACCESS_TOKEN: "sbase_shop-access-token",
 
     EVENT_COPY: 'copy',
     EVENT_CLEAR_CART: 'clear_cart',
+    EVENT_CLEAR_FS: 'clear_fs',
     EVENT_PAGE_SPEED_GT: 'gtmetrix',
     EVENT_PAGE_SPEED_GG: 'google',
     EVENT_PARAM_DEBUG: 'sbase_debug',
     EVENT_PARAM_CSR: 'render_csr',
     EVENT_URL_BOOTSTRAP: 'bootstrap',
+    EVENT_URL_CART: 'cart',
     EVENT_URL_PRODUCT_SINGLE: 'product_single',
     EVENT_URL_PRODUCT_LIST: 'product_list',
     EVENT_URL_COLLECTION_SINGLE: 'collection_single',
@@ -113,8 +120,7 @@ async function getPageInfo() {
 
 
     // Set cache
-    storage.set(pathName, `${SF_VAR.page_type};${SF_VAR.page_id}`)
-
+    storage.set(pathName, `${SF_VAR.page_type};${SF_VAR.page_id};${SF_VAR.handle}`)
 }
 
 function getFromCache() {
@@ -125,11 +131,18 @@ function getFromCache() {
     // Get page type
     const pathName = location.pathname;
     const rawData = storage.get(pathName)
-    if (rawData && rawData.length && rawData.split(';').length === 2) {
+    if (rawData && rawData.length) {
         const data = rawData.split(';')
-        SF_VAR.page_type = data[0];
-        SF_VAR.page_id = data[1];
-        utils.sflog('Cache page OK')
+        if (data.length === 2) {
+            // old data -> clear
+            storage.remove(pathName)
+        } else {
+            SF_VAR.page_type = data[0];
+            SF_VAR.page_id = data[1];
+            SF_VAR.handle = data[2];
+            utils.sflog('Cache page OK')
+        }
+
     }
 
     // Get tokens
@@ -141,6 +154,11 @@ function getFromCache() {
     SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
     if (SF_VAR.checkout_token) {
         SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+    }
+
+    SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
+    if (SF_VAR.access_token) {
+        SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
     }
 }
 
@@ -197,6 +215,14 @@ function addDebugPanel() {
             return
         }
 
+        const pathName = location.pathname;
+        let pageHandle = '';
+        if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+            pageHandle = pathName.split('products/')[1];
+        } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+            pageHandle = pathName.split('collections/')[1];
+        }
+
         const msg = utils.parseJSON(rawMsg);
         if (!msg) {
             return
@@ -220,6 +246,11 @@ function addDebugPanel() {
                 storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
                 window.location.reload();
                 break;
+            case SF_CONST.EVENT_CLEAR_FS:
+                storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}`, false)
+                storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}_expire`, false)
+                window.location.reload();
+                break;
             case SF_CONST.EVENT_PAGE_SPEED_GT:
                 openGtmetrixPs();
                 break;
@@ -238,16 +269,27 @@ function addDebugPanel() {
                 window.open(utils.getBootstrapUrl());
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
-                window.open(`${window.location.origin}/api/catalog/product.json?handle=${SF_VAR.handle}`);
+                if (!pageHandle) {
+                    utils.show_notify('Not product page', 'Can\'t open product single url', 'warning')
+                    return
+                }
+                window.open(`${window.location.origin}/api/catalog/product.json?handle=${pageHandle}`);
+                break;
+            case SF_CONST.EVENT_URL_CART:
+                window.location.href = `${window.location.origin}/cart`;
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_LIST:
                 window.open(`${window.location.origin}/collections/all`);
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
-                window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${SF_VAR.handle}`);
+                if (!pageHandle) {
+                    utils.show_notify('Not collection page', 'Can\'t open collection single url', 'warning')
+                    return
+                }
+                window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${pageHandle}`);
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_LIST:
-                window.open(`${window.location.origin}/api/catalog/collections_v2.json`);
+                window.open(`${window.location.origin}/collections`);
                 break;
         }
     });
@@ -289,30 +331,34 @@ function addDebugPanel() {
     <div class="panel panel-primary">
         <div class="panel-heading">
             <i class="fa fa-bug"> </i>
-            <span class="mp-menu-text">Debug theo cách của bạn và fix theo cách của chúng tôi</span>
+            <span class="mp-menu-text">Debug your way</span>
         </div>
         <div class="mp-panel-menu panel-body">
             <p class="bg bg-danger" style="padding: 10px; border-style: groove; border-radius: 10px;">
              <i class="fa fa-info-circle"></i>
-             Tip: Sử dụng phím tắt Ctrl + Alt + X để ẩn/hiện debug bar</p>
+             Tip: Sử dụng phím tắt Ctrl + Alt + X để ẩn/hiện debug icon</p>
             <div class="mp-padding-10">
                 <h3 class="text-danger">
                     <button class="btn">
                         <i class="fa fa-refresh"></i>
                     </button>
-                    Thông tin cơ bản (click để copy)
+                    Basic information (click to copy)
 
                 </h3>
 
                 <table class="table table-hover">
                     <thead>
                     <tr>
-                        <th>Loại thông tin</th>
-                        <th>Giá trị</th>
+                        <th>Information</th>
+                        <th>Value</th>
                     </tr>
                     </thead>
 
                     <tbody>
+                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
+                        <td>User id</td>
+                        <td>${SF_VAR.user_id}</td>
+                    </tr>
                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
                         <td>Shop id</td>
                         <td>${SF_VAR.shop_id}</td>
@@ -328,6 +374,10 @@ function addDebugPanel() {
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
                         <td>Checkout token</td>
                         <td>${SF_VAR.checkout_token}</td>
+                    </tr>
+                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.access_token}')">
+                        <td>Access token</td>
+                        <td>${SF_VAR.access_token}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -349,10 +399,10 @@ function addDebugPanel() {
                                 <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
                                 Clear cart
                             </button>
-<!--                            <button class="btn btn-danger">-->
-<!--                                <i class="fa fa-file-text-o" aria-hidden="true"></i>-->
-<!--                                Clear FS-->
-<!--                            </button>-->
+                            <button title="Clear feature switch" class="btn btn-danger" onclick="sendMessage('${SF_CONST.EVENT_CLEAR_FS}', '')">
+                                <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                                Clear FS
+                            </button>
                         </td>
                     </tr>
                     <tr>
@@ -401,6 +451,10 @@ function addDebugPanel() {
                             <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_BOOTSTRAP}', 'hihi')">
                                 <i class="fa fa-info-circle" aria-hidden="true"></i>
                                 Bootstrap
+                            </button>
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_CART}', '')">
+                                <i class="fa fa-cart-plus" aria-hidden="true"></i>
+                                Cart page
                             </button>
                         </td>
                     </tr>
@@ -472,6 +526,25 @@ function openGtmetrixPs() {
     SF_VAR.gtmetrix_index++;
 }
 
+function sfToggleDebugIcon() {
+    let sfToolIcon = document.getElementById('sf-tool-icon');
+
+    console.log('toggle debug bar now')
+    if (SF_VAR.icon_display) {
+        SF_VAR.icon_display = false;
+
+        sfToolIcon.style.width = '60px';
+        sfToolIcon.style.height = '60px';
+    } else {
+        SF_VAR.icon_display = true;
+        sfToolIcon.style.width = '0px';
+        sfToolIcon.style.height = '0px';
+    }
+
+    // save state
+
+}
+
 function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
@@ -491,20 +564,36 @@ function sfToggleDebugBar() {
     }
 }
 
+function listenUrlChange(event) {
+    const location = document.location;
+
+    // Product
+
+    // Collection
+}
+
 function keydown(evt) {
     if (!(evt.ctrlKey && evt.altKey && evt.keyCode === 88)) { //CTRL+ALT+X
         return
     }
 
-    if (!SF_VAR.sf) {
-        utils.sflog('Force storefront :nhin_scare:')
+    let sfToolIcon = document.getElementById('sf-tool-icon');
+    let sfDebugBar = document.getElementById('sf-debug-bar');
+
+    if (!sfToolIcon) {
         addIcon();
+    }
+
+    if (!sfDebugBar) {
         addDebugPanel();
+    }
+
+    if (!SF_VAR.sf) {
         SF_VAR.sf = true
     }
 
     if (!evt) evt = event;
-    sfToggleDebugBar()
+    sfToggleDebugIcon()
 }
 
 function bindEvent(element, eventName, eventHandler) {

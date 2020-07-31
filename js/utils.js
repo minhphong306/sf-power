@@ -137,6 +137,12 @@ const storage = {
             key = `sfpower-${key}`;
         }
         localStorage.setItem(key, value)
+    },
+    remove: (key, prefix = true) => {
+        if (prefix) {
+            key = `sfpower-${key}`;
+        }
+        localStorage.removeItem(key);
     }
 }
 
