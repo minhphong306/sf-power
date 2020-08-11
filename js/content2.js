@@ -34,6 +34,7 @@ const SF_CONST = {
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
     KEY_ACCESS_TOKEN: "sbase_shop-access-token",
 
+    // Receive event
     EVENT_COPY: 'copy',
     EVENT_CLEAR_CART: 'clear_cart',
     EVENT_CLEAR_FS: 'clear_fs',
@@ -49,7 +50,9 @@ const SF_CONST = {
     EVENT_URL_PAGE_SINGLE: 'page_single',
     EVENT_URL_COLLECTION_LIST: 'collection_list',
 
-    ID_SF_TOOL_FRAME: 'sf_tool_iframe'
+    ID_SF_TOOL_FRAME: 'sf_tool_iframe',
+    // Send event
+    EVENT_UPDATE_TOKEN: 'update_token',
 
 }
 
@@ -196,7 +199,7 @@ async function getBootstrap() {
 }
 
 function addIcon() {
-    console.log('Generate icon');
+    utils.sflog('Generate icon');
     const rawHtml = `<div id="sf-tool-icon" style="position:fixed;
     width:60px;
     height:60px;
@@ -216,7 +219,7 @@ function addIcon() {
 }
 
 function addDebugPanel() {
-    console.log('Generate debug panel')
+    utils.sflog('Generate debug panel')
 
 
     const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; right:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
@@ -301,7 +304,7 @@ function addDebugPanel() {
                 window.location.href = `${window.location.origin}/cart`;
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_LIST:
-                window.open(`${window.location.origin}/collections/all`);
+                window.location.href = `${window.location.origin}/collections/all`;
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
                 if (!pageHandle) {
@@ -318,7 +321,7 @@ function addDebugPanel() {
                 window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_LIST:
-                window.open(`${window.location.origin}/collections`);
+                window.location.href = `${window.location.origin}/collections`;
                 break;
         }
     });
@@ -334,6 +337,51 @@ function addDebugPanel() {
             const sendMsg = JSON.stringify(msg);
             window.parent.postMessage(sendMsg, '*');
         }; 
+        
+        function parseJSON(raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed;
+            } catch {
+                return ""
+            }
+        }
+        
+        // Listen message from parent
+        // Listen to messages from parent window
+        bindEvent(window, 'message', function (e) {
+            const rawMsg = e.data;
+            if (!rawMsg) {
+                return
+            }     
+            
+            const msg = parseJSON(rawMsg);
+            if (!msg) {
+                return
+            }
+    
+            const name = msg.name;
+            const data = msg.data;
+            if (!msg.name) {
+                return
+            }
+                
+            switch (name) {
+                case '${SF_CONST.EVENT_UPDATE_TOKEN}':
+                    document.getElementById('cart_token').innerText = data.cart_token;
+                    document.getElementById('checkout_token').innerText = data.checkout_token;
+                    document.getElementById('access_token').innerText = data.access_token;
+                    break;
+            }
+        });
+        
+        function bindEvent(element, eventName, eventHandler) {
+        if (element.addEventListener) {
+            element.addEventListener(eventName, eventHandler, false);
+        } else if (element.attachEvent) {
+            element.attachEvent('on' + eventName, eventHandler);
+        }
+    }
     
     </s` + `cript>`
 
@@ -385,8 +433,8 @@ function addDebugPanel() {
 
                     <tbody>
                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
-                        <td>User id</td>
-                        <td>${SF_VAR.user_id}</td>
+                        <td>Platform domain</td>
+                        <td>${SF_VAR.domain}</td>
                     </tr>
                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
                         <td>Shop id</td>
@@ -398,15 +446,15 @@ function addDebugPanel() {
                     </tr>
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
                         <td>Cart token</td>
-                        <td>${SF_VAR.cart_token}</td>
+                        <td id="cart_token">${SF_VAR.cart_token}</td>
                     </tr>
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
                         <td>Checkout token</td>
-                        <td>${SF_VAR.checkout_token}</td>
+                        <td id="checkout_token">${SF_VAR.checkout_token}</td>
                     </tr>
                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.access_token}')">
                         <td>Access token</td>
-                        <td>${SF_VAR.access_token}</td>
+                        <td id="access_token">${SF_VAR.access_token}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -593,6 +641,29 @@ function sfToggleDebugIcon() {
 function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
+    if (!SF_VAR.cart_token || !SF_VAR.checkout_token  || !SF_VAR.access_token) {
+        const regex = /"/gi
+        SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+        if (SF_VAR.cart_token) {
+            SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
+        }
+        SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+        if (SF_VAR.checkout_token) {
+            SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+        }
+
+        SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
+        if (SF_VAR.access_token) {
+            SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
+        }
+
+        sendMessageToChild(SF_CONST.EVENT_UPDATE_TOKEN, {
+            cart_token: SF_VAR.cart_token,
+            checkout_token: SF_VAR.checkout_token,
+            access_token: SF_VAR.access_token,
+        })
+    }
+
 
     console.log('toggle debug bar now')
     if (SF_VAR.debug_open) {
