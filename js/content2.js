@@ -26,7 +26,7 @@ let SF_VAR = {
 }
 
 const SF_CONST = {
-    NOT_SF: "-99",
+    NOT_SF: "-98",
     NOT_KNOWN_PAGE: "not_known",
 
     KEY_SHOP_ID: "shop_id",
@@ -84,7 +84,7 @@ async function startApplication() {
 
 async function getPageInfo() {
     const pathName = location.pathname;
-    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName) && !pathName.includes('/admin')) {
         SF_VAR.page_type = 'Product';
         SF_VAR.handle = pathName.split('products/')[1];
         const url = utils.getProductSingleUrl(SF_VAR.handle)
@@ -92,7 +92,7 @@ async function getPageInfo() {
         SF_VAR.page_id = sfPageObject ? sfPageObject.id : 0
         console.log('Product page: ', sfPageId)
         return
-    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName) && !pathName.includes('/admin')) {
         SF_VAR.page_type = 'Collection';
         SF_VAR.handle = pathName.split('collections/')[1];
 
@@ -148,8 +148,15 @@ async function getBootstrap() {
     SF_VAR.domain = sfBootstrap.platform_domain;
 
     if (sfBootstrap.shop_id === 0) {
-        storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
+
+        const domain = window.location.hostname;
         SF_VAR.sf = SF_CONST.NOT_SF
+        // Handle error for case create store or store has password
+        if (domain.includes('.myshopbase.net') || domain.includes('.onshopbase.com')) {
+            return
+        }
+        storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
+
     }
 }
 
@@ -175,7 +182,6 @@ function addIcon() {
 
 function addDebugPanel() {
     console.log('Generate debug panel')
-
 
 
     const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:50px; left:50px;  width: 600px; height: 800px; overflow: hidden; z-index: 99999999">
@@ -422,7 +428,7 @@ function keydown(evt) {
 }
 
 function bindEvent(element, eventName, eventHandler) {
-    if (element.addEventListener){
+    if (element.addEventListener) {
         element.addEventListener(eventName, eventHandler, false);
     } else if (element.attachEvent) {
         element.attachEvent('on' + eventName, eventHandler);
