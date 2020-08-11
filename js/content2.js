@@ -1,16 +1,8 @@
 'use strict'
-var isDebugBarOpen = false
-var isSF = false
 let sfBootstrap;
-let sfShopId = 0;
-let sfPlatformDomain = '';
 let sfPageType = '';
-let sfPageHandle = '';
 let sfPageId = 0;
 let sfPageObject = {};
-let sfCartToken = '';
-let sfCheckoutToken = '';
-let isDragging = false;
 
 let SF_VAR = {
     debug_open: false,
