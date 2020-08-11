@@ -1,4 +1,5 @@
 'use strict'
+
 let sfBootstrap;
 let sfPageType = '';
 let sfPageId = 0;
@@ -6,15 +7,19 @@ let sfPageObject = {};
 
 let SF_VAR = {
     debug_open: false,
+    icon_display: true,
     sf: false,
     dragging: false,
+    user_id: 0,
     shop_id: 0,
     domain: '',
     page_id: 0,
+    gtmetrix_index: 0,
     page_type: '',
     handle: '',
     cart_token: '',
-    checkout_token: ''
+    checkout_token: '',
+    access_token: '',
 }
 
 const SF_CONST = {
@@ -25,7 +30,27 @@ const SF_CONST = {
     KEY_IS_SF: "is_sf",
     KEY_PLATFORM_DOMAIN: "platform_domain",
     KEY_CART_TOKEN: "shop/carts/current-cart-token",
+    KEY_FEATURE_SWITCH: "sbase_feature_switch",
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
+    KEY_ACCESS_TOKEN: "sbase_shop-access-token",
+
+    EVENT_COPY: 'copy',
+    EVENT_CLEAR_CART: 'clear_cart',
+    EVENT_CLEAR_FS: 'clear_fs',
+    EVENT_PAGE_SPEED_GT: 'gtmetrix',
+    EVENT_PAGE_SPEED_GG: 'google',
+    EVENT_PARAM_DEBUG: 'sbase_debug',
+    EVENT_PARAM_CSR: 'render_csr',
+    EVENT_URL_BOOTSTRAP: 'bootstrap',
+    EVENT_URL_CART: 'cart',
+    EVENT_URL_PRODUCT_SINGLE: 'product_single',
+    EVENT_URL_PRODUCT_LIST: 'product_list',
+    EVENT_URL_COLLECTION_SINGLE: 'collection_single',
+    EVENT_URL_PAGE_SINGLE: 'page_single',
+    EVENT_URL_COLLECTION_LIST: 'collection_list',
+
+    ID_SF_TOOL_FRAME: 'sf_tool_iframe'
+
 }
 
 
@@ -53,11 +78,9 @@ async function startApplication() {
         await getPageInfo();
     }
 
-
     // Build debug panel
     addIcon();
     addDebugPanel();
-
 
     // Bind events
     let sfToolIcon = document.getElementById('sf-tool-icon');
@@ -94,6 +117,15 @@ async function getPageInfo() {
         SF_VAR.page_id = sfPageObject.id
         utils.sflog('Collection page: ', SF_VAR.page_id)
 
+    } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
+        SF_VAR.page_type = 'Page';
+        SF_VAR.handle = pathName.split('pages/')[1];
+
+        const url = utils.getPageSingleUrl(SF_VAR.handle)
+        sfPageObject = await doAjax(url)
+        sfPageObject = (sfPageObject && sfPageObject.page) ? sfPageObject.page : {id: 0}
+        SF_VAR.page_id = sfPageObject.id
+        utils.sflog('Page page: ', SF_VAR.page_id)
     } else {
         SF_VAR.page_type = "NOT_KNOWN_PAGE"
         SF_VAR.page_id = "0"
@@ -101,8 +133,7 @@ async function getPageInfo() {
 
 
     // Set cache
-    storage.set(pathName, `${SF_VAR.page_type};${SF_VAR.page_id}`)
-
+    storage.set(pathName, `${SF_VAR.page_type};${SF_VAR.page_id};${SF_VAR.handle}`)
 }
 
 function getFromCache() {
@@ -113,11 +144,18 @@ function getFromCache() {
     // Get page type
     const pathName = location.pathname;
     const rawData = storage.get(pathName)
-    if (rawData && rawData.length && rawData.split(';').length === 2) {
+    if (rawData && rawData.length) {
         const data = rawData.split(';')
-        SF_VAR.page_type = data[0];
-        SF_VAR.page_id = data[1];
-        utils.sflog('Cache page OK')
+        if (data.length === 2) {
+            // old data -> clear
+            storage.remove(pathName)
+        } else {
+            SF_VAR.page_type = data[0];
+            SF_VAR.page_id = data[1];
+            SF_VAR.handle = data[2];
+            utils.sflog('Cache page OK')
+        }
+
     }
 
     // Get tokens
@@ -129,6 +167,11 @@ function getFromCache() {
     SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
     if (SF_VAR.checkout_token) {
         SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+    }
+
+    SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
+    if (SF_VAR.access_token) {
+        SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
     }
 }
 
@@ -157,8 +200,8 @@ function addIcon() {
     const rawHtml = `<div id="sf-tool-icon" style="position:fixed;
     width:60px;
     height:60px;
-    bottom:40px;
-    left:40px;
+    bottom:85px;
+    right:30px;
     background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
     background-size: contain;
     color:#FFF;
@@ -176,9 +219,9 @@ function addDebugPanel() {
     console.log('Generate debug panel')
 
 
-    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:50px; left:50px;  width: 600px; height: 800px; overflow: hidden; z-index: 99999999">
+    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; right:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
-    <iframe id="myframe" style="width:100%; height: 100%">
+    <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%">
 
     </iframe>
 </div>`
@@ -187,7 +230,97 @@ function addDebugPanel() {
     $('body').append(html);
 
     bindEvent(window, 'message', function (e) {
-        utils.sflog("Receive msg: ", e)
+        const rawMsg = e.data;
+        if (!rawMsg) {
+            return
+        }
+
+        const pathName = location.pathname;
+        let pageHandle = '';
+        if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+            pageHandle = pathName.split('products/')[1];
+        } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+            pageHandle = pathName.split('collections/')[1];
+        } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
+            pageHandle = pathName.split('pages/')[1];
+        }
+
+        const msg = utils.parseJSON(rawMsg);
+        if (!msg) {
+            return
+        }
+
+        const name = msg.name;
+        const data = msg.data;
+        if (!msg.name) {
+            return
+        }
+
+        const url = window.location.href;
+        const urlObj = new URL(window.location.href);
+
+        switch (name) {
+            case SF_CONST.EVENT_COPY:
+                utils.copyToClipboard(data);
+                utils.show_notify('Copied to clipboard', 'OK', 'success');
+                break;
+            case SF_CONST.EVENT_CLEAR_CART:
+                storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
+                window.location.reload();
+                break;
+            case SF_CONST.EVENT_CLEAR_FS:
+                storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}`, false)
+                storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}_expire`, false)
+                window.location.reload();
+                break;
+            case SF_CONST.EVENT_PAGE_SPEED_GT:
+                openGtmetrixPs();
+                break;
+            case SF_CONST.EVENT_PAGE_SPEED_GG:
+                window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
+                break;
+            case SF_CONST.EVENT_PARAM_DEBUG:
+                urlObj.searchParams.append('sbase_debug', 1);
+                window.location.href = urlObj.href;
+                break;
+            case SF_CONST.EVENT_PARAM_CSR:
+                urlObj.searchParams.append('render_csr', 1);
+                window.location.href = urlObj.href;
+                break;
+            case SF_CONST.EVENT_URL_BOOTSTRAP:
+                window.open(utils.getBootstrapUrl());
+                break;
+            case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
+                if (!pageHandle) {
+                    utils.show_notify('Not product page', 'Can\'t open product single url', 'warning')
+                    return
+                }
+                window.open(`${window.location.origin}/api/catalog/product.json?handle=${pageHandle}`);
+                break;
+            case SF_CONST.EVENT_URL_CART:
+                window.location.href = `${window.location.origin}/cart`;
+                break;
+            case SF_CONST.EVENT_URL_PRODUCT_LIST:
+                window.open(`${window.location.origin}/collections/all`);
+                break;
+            case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
+                if (!pageHandle) {
+                    utils.show_notify('Not collection page', 'Can\'t open collection single url', 'warning')
+                    return
+                }
+                window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${pageHandle}`);
+                break;
+            case SF_CONST.EVENT_URL_PAGE_SINGLE:
+                if (!pageHandle) {
+                    utils.show_notify('Not page page', 'Can\'t open page single url', 'warning')
+                    return
+                }
+                window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
+                break;
+            case SF_CONST.EVENT_URL_COLLECTION_LIST:
+                window.open(`${window.location.origin}/collections`);
+                break;
+        }
     });
 
     let script = `
@@ -195,10 +328,12 @@ function addDebugPanel() {
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>
     <script>
         // Send a message to the parent
-        var sendMessage = function (msg) {
+        var sendMessage = function (name, data) {
             // Make sure you are sending a string, and to stringify JSON
-            window.parent.postMessage(msg, '*');
-        };
+            const msg = {name: name, data: data}
+            const sendMsg = JSON.stringify(msg);
+            window.parent.postMessage(sendMsg, '*');
+        }; 
     
     </s` + `cript>`
 
@@ -225,42 +360,53 @@ function addDebugPanel() {
     <div class="panel panel-primary">
         <div class="panel-heading">
             <i class="fa fa-bug"> </i>
-            <span class="mp-menu-text">Debug theo cách của bạn và fix theo cách của chúng tôi</span>
+            <span class="mp-menu-text">Debug your way</span>
         </div>
         <div class="mp-panel-menu panel-body">
+            <p class="bg bg-danger" style="padding: 10px; border-style: groove; border-radius: 10px;">
+             <i class="fa fa-info-circle"></i>
+             Tip: Sử dụng phím tắt Ctrl + Alt + X để ẩn/hiện debug icon</p>
             <div class="mp-padding-10">
                 <h3 class="text-danger">
                     <button class="btn">
                         <i class="fa fa-refresh"></i>
                     </button>
-                    Thông tin cơ bản (click để copy)
+                    Basic information (click to copy)
 
                 </h3>
 
                 <table class="table table-hover">
                     <thead>
                     <tr>
-                        <th>Loại thông tin</th>
-                        <th>Giá trị</th>
+                        <th>Information</th>
+                        <th>Value</th>
                     </tr>
                     </thead>
 
                     <tbody>
-                    <tr onclick="sendMessage('${SF_VAR.shop_id}')">
+                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
+                        <td>User id</td>
+                        <td>${SF_VAR.user_id}</td>
+                    </tr>
+                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
                         <td>Shop id</td>
                         <td>${SF_VAR.shop_id}</td>
                     </tr>
-                    <tr>
+                    <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
                         <td>${SF_VAR.page_type}</td>
                         <td>${SF_VAR.page_id}</td>
                     </tr>
-                    <tr>
+                    <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
                         <td>Cart token</td>
                         <td>${SF_VAR.cart_token}</td>
                     </tr>
-                    <tr>
+                    <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
                         <td>Checkout token</td>
                         <td>${SF_VAR.checkout_token}</td>
+                    </tr>
+                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.access_token}')">
+                        <td>Access token</td>
+                        <td>${SF_VAR.access_token}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -278,11 +424,11 @@ function addDebugPanel() {
                             Clear things
                         </td>
                         <td>
-                            <button class="btn btn-danger">
+                            <button class="btn btn-danger"  onclick="sendMessage('${SF_CONST.EVENT_CLEAR_CART}', '${SF_VAR.cart_token}')">
                                 <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
                                 Clear cart
                             </button>
-                            <button class="btn btn-danger">
+                            <button title="Clear feature switch" class="btn btn-danger" onclick="sendMessage('${SF_CONST.EVENT_CLEAR_FS}', '')">
                                 <i class="fa fa-file-text-o" aria-hidden="true"></i>
                                 Clear FS
                             </button>
@@ -291,11 +437,11 @@ function addDebugPanel() {
                     <tr>
                         <td>Page speed</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary"   onclick="sendMessage('${SF_CONST.EVENT_PAGE_SPEED_GT}', 'hihi')">
                                 <i class="fa fa-motorcycle" aria-hidden="true"></i>
                                 Gtmetrix
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_PAGE_SPEED_GG}', 'hihi')">
                                 <i class="fa fa-google" aria-hidden="true"></i>
                                 Google
                             </button>
@@ -304,11 +450,11 @@ function addDebugPanel() {
                     <tr>
                         <td>Params</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_PARAM_DEBUG}', 'hihi')">
                                 <i class="fa fa-bug" aria-hidden="true"></i>
                                 Sbase debug
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_PARAM_CSR}', 'hihi')">
                                 <i class="fa fa-spinner" aria-hidden="true"></i>
                                 Render csr
                             </button>
@@ -331,20 +477,24 @@ function addDebugPanel() {
                             Bootstrap
                         </td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_BOOTSTRAP}', 'hihi')">
                                 <i class="fa fa-info-circle" aria-hidden="true"></i>
                                 Bootstrap
+                            </button>
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_CART}', '')">
+                                <i class="fa fa-cart-plus" aria-hidden="true"></i>
+                                Cart page
                             </button>
                         </td>
                     </tr>
                     <tr>
                         <td>Product</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_PRODUCT_SINGLE}', 'hihi')">
                                 <i class="fa fa-cube" aria-hidden="true"></i>
                                 Product single
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_PRODUCT_LIST}', 'hihi')">
                                 <i class="fa fa-cubes" aria-hidden="true"></i>
                                 Product list
                             </button>
@@ -353,13 +503,22 @@ function addDebugPanel() {
                     <tr>
                         <td>Collection</td>
                         <td>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_COLLECTION_SINGLE}', 'hihi')">
                                 <i class="fa fa-object-group" aria-hidden="true"></i>
                                 Collection single
                             </button>
-                            <button class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_COLLECTION_LIST}', 'hihi')">
                                 <i class="fa fa-object-group" aria-hidden="true"></i>
                                 Collection list
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Page</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_URL_PAGE_SINGLE}', 'hihi')">
+                                <i class="fa fa-object-group" aria-hidden="true"></i>
+                                Page single
                             </button>
                         </td>
                     </tr>
@@ -379,9 +538,56 @@ function addDebugPanel() {
 </body>
 </html>
 `;
-    const doc = document.getElementById('myframe').contentWindow.document;
+    const doc = document.getElementById(SF_CONST.ID_SF_TOOL_FRAME).contentWindow.document;
     doc.write(rawHTML2);
     doc.close();
+}
+
+function sendMessageToChild(name, data) {
+    const iframeEl = document.getElementById(SF_CONST.ID_SF_TOOL_FRAME);
+    const msg = {name: name, data: data}
+    const sendMsg = JSON.stringify(msg);
+    iframeEl.contentWindow.postMessage(sendMsg, '*');
+}
+
+
+function openGtmetrixPs() {
+    const gtMetrixForm = document.createElement('form')
+    gtMetrixForm.method = 'post'
+    gtMetrixForm.action = 'https://gtmetrix.com/analyze.html';
+    gtMetrixForm.target = `TheWindow${SF_VAR.gtmetrix_index}`
+    gtMetrixForm.id = `sf_gt_metrix_form${SF_VAR.gtmetrix_index}`;
+
+    const urlInput = document.createElement('input');
+    urlInput.type = 'hidden';
+    urlInput.value = window.location.href;
+    urlInput.name = 'url';
+    gtMetrixForm.appendChild(urlInput);
+    document.body.appendChild(gtMetrixForm);
+
+    window.open('', `TheWindow${SF_VAR.gtmetrix_index}`);
+    gtMetrixForm.submit();
+
+    SF_VAR.gtmetrix_index++;
+}
+
+function sfToggleDebugIcon() {
+    let sfToolIcon = document.getElementById('sf-tool-icon');
+
+    console.log('toggle debug bar now')
+    if (SF_VAR.icon_display) {
+        SF_VAR.icon_display = false;
+
+        sfToolIcon.style.width = '60px';
+        sfToolIcon.style.height = '60px';
+    } else {
+        SF_VAR.icon_display = true;
+        sfToolIcon.style.width = '0px';
+        sfToolIcon.style.height = '0px';
+    }
+
+    // save state
+
 }
 
 function sfToggleDebugBar() {
@@ -403,20 +609,43 @@ function sfToggleDebugBar() {
     }
 }
 
+function listenUrlChange(event) {
+    var pushState = history.pushState;
+    history.pushState = function () {
+        pushState.apply(history, arguments);
+
+        // if not page, producct/ collection -> return
+
+        // Get from cache
+
+        // request url
+
+        // Send msg to child
+    };
+}
+
 function keydown(evt) {
     if (!(evt.ctrlKey && evt.altKey && evt.keyCode === 88)) { //CTRL+ALT+X
         return
     }
 
-    if (!SF_VAR.sf) {
-        utils.sflog('Force storefront :nhin_scare:')
+    let sfToolIcon = document.getElementById('sf-tool-icon');
+    let sfDebugBar = document.getElementById('sf-debug-bar');
+
+    if (!sfToolIcon) {
         addIcon();
+    }
+
+    if (!sfDebugBar) {
         addDebugPanel();
+    }
+
+    if (!SF_VAR.sf) {
         SF_VAR.sf = true
     }
 
     if (!evt) evt = event;
-    sfToggleDebugBar()
+    sfToggleDebugIcon()
 }
 
 function bindEvent(element, eventName, eventHandler) {

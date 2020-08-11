@@ -20,10 +20,12 @@
     {
       "js": [
         "js/libs/jquery-3.3.1.min.js",
+        "js/libs/pnotify.custom.min.js",
         "js/utils.js",
         "js/content2.js"
       ],
       "css": [
+        "css/pnotify.custom.min.css"
       ],
       "run_at": "document_end",
       "matches": [

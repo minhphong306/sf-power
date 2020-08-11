@@ -27,6 +27,8 @@ const utils = {
         return `${window.location.origin}/api/catalog/product.json?handle=${handle}`;
     }, getCollectionSingleUrl: (handle) => {
         return `${window.location.origin}/api/catalog/collections_v2.json?handles=${handle}`;
+    },getPageSingleUrl: (handle) => {
+        return `${window.location.origin}/api/pages.json?handle=${handle}`;
     }, parseBootstrap: (bootstrap) => {
         if (bootstrap && bootstrap.result) {
             return bootstrap.result;
@@ -114,6 +116,14 @@ const utils = {
             document.onmouseup = null;
             document.onmousemove = null;
         }
+    },
+    parseJSON(raw) {
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed;
+        } catch {
+            return ""
+        }
     }
 }
 
@@ -129,6 +139,12 @@ const storage = {
             key = `sfpower-${key}`;
         }
         localStorage.setItem(key, value)
+    },
+    remove: (key, prefix = true) => {
+        if (prefix) {
+            key = `sfpower-${key}`;
+        }
+        localStorage.removeItem(key);
     }
 }
 
