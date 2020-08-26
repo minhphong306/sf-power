@@ -75,16 +75,16 @@ startApplication();
 function detectEnv() {
     const host = window.location.host;
     if (host.includes("stag.myshopbase.net") || host.includes(".sbasestag.tk")) {
-        SF_VAR.env = 'stag'
+        SF_VAR.env = SF_CONST.ENV_STAG
         return
     }
 
     if (host.includes(".myshopbase.net") || host.includes(".sbasedev.tk")) {
-        SF_VAR.env = 'dev'
+        SF_VAR.env = SF_CONST.ENV_DEV
         return
     }
 
-    SF_VAR.env = 'prod'
+    SF_VAR.env = SF_CONST.ENV_PROD
 }
 
 async function startApplication() {
