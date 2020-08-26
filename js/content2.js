@@ -1,6 +1,7 @@
 'use strict'
 
 let sfBootstrap;
+let sfPageType = '';
 let sfPageId = 0;
 let sfPageObject = {};
 
@@ -19,10 +20,11 @@ let SF_VAR = {
     cart_token: '',
     checkout_token: '',
     access_token: '',
+    env: ''
 }
 
 const SF_CONST = {
-    NOT_SF: "-99",
+    NOT_SF: "-98",
     NOT_KNOWN_PAGE: "not_known",
 
     KEY_SHOP_ID: "shop_id",
@@ -33,6 +35,15 @@ const SF_CONST = {
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
     KEY_ACCESS_TOKEN: "sbase_shop-access-token",
 
+    ENV_DEV: 'dev',
+    ENV_STAG: 'stag',
+    ENV_PROD: 'prod',
+
+    URL_HIVE_DEV: 'https://hive.dev.shopbase.net',
+    URL_HIVE_STAG: 'https://hive.stag.shopbase.net',
+    URL_HIVE_PROD: 'https://hive.shopbase.com',
+
+    // Receive event
     EVENT_COPY: 'copy',
     EVENT_CLEAR_CART: 'clear_cart',
     EVENT_CLEAR_FS: 'clear_fs',
@@ -47,8 +58,11 @@ const SF_CONST = {
     EVENT_URL_COLLECTION_SINGLE: 'collection_single',
     EVENT_URL_PAGE_SINGLE: 'page_single',
     EVENT_URL_COLLECTION_LIST: 'collection_list',
+    EVENT_URL_LOGIN_AS: 'login_as',
 
-    ID_SF_TOOL_FRAME: 'sf_tool_iframe'
+    ID_SF_TOOL_FRAME: 'sf_tool_iframe',
+    // Send event
+    EVENT_UPDATE_TOKEN: 'update_token',
 
 }
 
@@ -57,6 +71,21 @@ utils.sflog('Starting')
 
 startApplication();
 
+
+function detectEnv() {
+    const host = window.location.host;
+    if (host.includes("stag.myshopbase.net") || host.includes(".sbasestag.tk")) {
+        SF_VAR.env = SF_CONST.ENV_STAG
+        return
+    }
+
+    if (host.includes(".myshopbase.net") || host.includes(".sbasedev.tk")) {
+        SF_VAR.env = SF_CONST.ENV_DEV
+        return
+    }
+
+    SF_VAR.env = SF_CONST.ENV_PROD
+}
 
 async function startApplication() {
     // Get from cache
@@ -72,6 +101,9 @@ async function startApplication() {
             return
         }
     }
+
+    // detect env
+    detectEnv()
 
     if (!SF_VAR.page_type) {
         await getPageInfo();
@@ -98,7 +130,7 @@ async function startApplication() {
 
 async function getPageInfo() {
     const pathName = location.pathname;
-    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName) && !pathName.includes('/admin')) {
         SF_VAR.page_type = 'Product';
         SF_VAR.handle = pathName.split('products/')[1];
         const url = utils.getProductSingleUrl(SF_VAR.handle)
@@ -106,7 +138,7 @@ async function getPageInfo() {
         SF_VAR.page_id = sfPageObject ? sfPageObject.id : 0
         console.log('Product page: ', sfPageId)
         return
-    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName) && !pathName.includes('/admin')) {
         SF_VAR.page_type = 'Collection';
         SF_VAR.handle = pathName.split('collections/')[1];
 
@@ -182,18 +214,24 @@ async function getBootstrap() {
     SF_VAR.domain = sfBootstrap.platform_domain;
 
     if (sfBootstrap.shop_id === 0) {
-        storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
+
+        const domain = window.location.hostname;
         SF_VAR.sf = SF_CONST.NOT_SF
+        // Handle error for case create store or store has password
+        if (domain.includes('.myshopbase.net') || domain.includes('.onshopbase.com')) {
+            return
+        }
+        storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
     }
 }
 
 function addIcon() {
-    console.log('Generate icon');
+    utils.sflog('Generate icon');
     const rawHtml = `<div id="sf-tool-icon" style="position:fixed;
     width:60px;
     height:60px;
-    bottom:40px;
-    left:40px;
+    bottom:85px;
+    right:30px;
     background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
     background-size: contain;
     color:#FFF;
@@ -208,10 +246,10 @@ function addIcon() {
 }
 
 function addDebugPanel() {
-    console.log('Generate debug panel')
+    utils.sflog('Generate debug panel')
 
 
-    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; left:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
+    const rawHTML = `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:10px; right:20px;  width: 600px; height: 80vh; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
     <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%">
 
@@ -293,7 +331,7 @@ function addDebugPanel() {
                 window.location.href = `${window.location.origin}/cart`;
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_LIST:
-                window.open(`${window.location.origin}/collections/all`);
+                window.location.href = `${window.location.origin}/collections/all`;
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
                 if (!pageHandle) {
@@ -310,7 +348,27 @@ function addDebugPanel() {
                 window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_LIST:
-                window.open(`${window.location.origin}/collections`);
+                window.location.href = `${window.location.origin}/collections`;
+                break;
+            case SF_CONST.EVENT_URL_LOGIN_AS:
+                let hiveUrl = '';
+                switch (SF_VAR.env) {
+                    case SF_CONST.ENV_DEV:
+                        hiveUrl = SF_CONST.URL_HIVE_DEV;
+                        break;
+                    case SF_CONST.ENV_STAG:
+                        hiveUrl = SF_CONST.URL_HIVE_STAG;
+                        break;
+                    case SF_CONST.ENV_PROD:
+                        hiveUrl = SF_CONST.URL_HIVE_PROD;
+                        break;
+                    default:
+                        utils.show_notify('Can\'t detect env', 'Can\'t open login as page', 'warning')
+                        return
+                }
+
+                hiveUrl = `${hiveUrl}/admin/app/shop/list?filter[id][value]=${data}`
+                window.open(hiveUrl);
                 break;
         }
     });
@@ -326,6 +384,51 @@ function addDebugPanel() {
             const sendMsg = JSON.stringify(msg);
             window.parent.postMessage(sendMsg, '*');
         }; 
+        
+        function parseJSON(raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed;
+            } catch {
+                return ""
+            }
+        }
+        
+        // Listen message from parent
+        // Listen to messages from parent window
+        bindEvent(window, 'message', function (e) {
+            const rawMsg = e.data;
+            if (!rawMsg) {
+                return
+            }     
+            
+            const msg = parseJSON(rawMsg);
+            if (!msg) {
+                return
+            }
+    
+            const name = msg.name;
+            const data = msg.data;
+            if (!msg.name) {
+                return
+            }
+                
+            switch (name) {
+                case '${SF_CONST.EVENT_UPDATE_TOKEN}':
+                    document.getElementById('cart_token').innerText = data.cart_token;
+                    document.getElementById('checkout_token').innerText = data.checkout_token;
+                    document.getElementById('access_token').innerText = data.access_token;
+                    break;
+            }
+        });
+        
+        function bindEvent(element, eventName, eventHandler) {
+        if (element.addEventListener) {
+            element.addEventListener(eventName, eventHandler, false);
+        } else if (element.attachEvent) {
+            element.attachEvent('on' + eventName, eventHandler);
+        }
+    }
     
     </s` + `cript>`
 
@@ -377,12 +480,17 @@ function addDebugPanel() {
 
                     <tbody>
                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
-                        <td>User id</td>
-                        <td>${SF_VAR.user_id}</td>
+                        <td>Platform domain</td>
+                        <td>${SF_VAR.domain}</td>
                     </tr>
-                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
+                    <tr>
                         <td>Shop id</td>
-                        <td>${SF_VAR.shop_id}</td>
+                        <td>
+                            <span  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">${SF_VAR.shop_id}</span>
+                            <button class="btn btn-primary"  onclick="sendMessage('${SF_CONST.EVENT_URL_LOGIN_AS}', '${SF_VAR.shop_id}')">
+                                <i class="fa fa-external-link-square" aria-hidden="true"></i> Login as
+                            </button>
+                            </td>
                     </tr>
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
                         <td>${SF_VAR.page_type}</td>
@@ -390,15 +498,15 @@ function addDebugPanel() {
                     </tr>
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
                         <td>Cart token</td>
-                        <td>${SF_VAR.cart_token}</td>
+                        <td id="cart_token">${SF_VAR.cart_token}</td>
                     </tr>
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
                         <td>Checkout token</td>
-                        <td>${SF_VAR.checkout_token}</td>
+                        <td id="checkout_token">${SF_VAR.checkout_token}</td>
                     </tr>
                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.access_token}')">
                         <td>Access token</td>
-                        <td>${SF_VAR.access_token}</td>
+                        <td id="access_token">${SF_VAR.access_token}</td>
                     </tr>
                     </tbody>
                 </table>
@@ -585,6 +693,29 @@ function sfToggleDebugIcon() {
 function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
+    if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token) {
+        const regex = /"/gi
+        SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+        if (SF_VAR.cart_token) {
+            SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
+        }
+        SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+        if (SF_VAR.checkout_token) {
+            SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+        }
+
+        SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
+        if (SF_VAR.access_token) {
+            SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
+        }
+
+        sendMessageToChild(SF_CONST.EVENT_UPDATE_TOKEN, {
+            cart_token: SF_VAR.cart_token,
+            checkout_token: SF_VAR.checkout_token,
+            access_token: SF_VAR.access_token,
+        })
+    }
+
 
     console.log('toggle debug bar now')
     if (SF_VAR.debug_open) {
