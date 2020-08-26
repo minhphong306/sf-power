@@ -20,6 +20,7 @@ let SF_VAR = {
     cart_token: '',
     checkout_token: '',
     access_token: '',
+    env: ''
 }
 
 const SF_CONST = {
@@ -33,6 +34,14 @@ const SF_CONST = {
     KEY_FEATURE_SWITCH: "sbase_feature_switch",
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
     KEY_ACCESS_TOKEN: "sbase_shop-access-token",
+
+    ENV_DEV: 'dev',
+    ENV_STAG: 'stag',
+    ENV_PROD: 'prod',
+
+    URL_HIVE_DEV: 'https://hive.dev.shopbase.net',
+    URL_HIVE_STAG: 'https://hive.stag.shopbase.net',
+    URL_HIVE_PROD: 'https://hive.shopbase.com',
 
     // Receive event
     EVENT_COPY: 'copy',
@@ -49,6 +58,7 @@ const SF_CONST = {
     EVENT_URL_COLLECTION_SINGLE: 'collection_single',
     EVENT_URL_PAGE_SINGLE: 'page_single',
     EVENT_URL_COLLECTION_LIST: 'collection_list',
+    EVENT_URL_LOGIN_AS: 'login_as',
 
     ID_SF_TOOL_FRAME: 'sf_tool_iframe',
     // Send event
@@ -61,6 +71,21 @@ utils.sflog('Starting')
 
 startApplication();
 
+
+function detectEnv() {
+    const host = window.location.host;
+    if (host.includes("stag.myshopbase.net") || host.includes(".sbasestag.tk")) {
+        SF_VAR.env = 'stag'
+        return
+    }
+
+    if (host.includes(".myshopbase.net") || host.includes(".sbasedev.tk")) {
+        SF_VAR.env = 'dev'
+        return
+    }
+
+    SF_VAR.env = 'prod'
+}
 
 async function startApplication() {
     // Get from cache
@@ -76,6 +101,9 @@ async function startApplication() {
             return
         }
     }
+
+    // detect env
+    detectEnv()
 
     if (!SF_VAR.page_type) {
         await getPageInfo();
@@ -194,7 +222,6 @@ async function getBootstrap() {
             return
         }
         storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
-
     }
 }
 
@@ -323,6 +350,26 @@ function addDebugPanel() {
             case SF_CONST.EVENT_URL_COLLECTION_LIST:
                 window.location.href = `${window.location.origin}/collections`;
                 break;
+            case SF_CONST.EVENT_URL_LOGIN_AS:
+                let hiveUrl = '';
+                switch (SF_VAR.env) {
+                    case SF_CONST.ENV_DEV:
+                        hiveUrl = SF_CONST.URL_HIVE_DEV;
+                        break;
+                    case SF_CONST.ENV_STAG:
+                        hiveUrl = SF_CONST.URL_HIVE_STAG;
+                        break;
+                    case SF_CONST.ENV_PROD:
+                        hiveUrl = SF_CONST.URL_HIVE_PROD;
+                        break;
+                    default:
+                        utils.show_notify('Can\'t detect env', 'Can\'t open login as page', 'warning')
+                        return
+                }
+
+                hiveUrl = `${hiveUrl}/admin/app/shop/list?filter[id][value]=${data}`
+                window.open(hiveUrl);
+                break;
         }
     });
 
@@ -436,9 +483,14 @@ function addDebugPanel() {
                         <td>Platform domain</td>
                         <td>${SF_VAR.domain}</td>
                     </tr>
-                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
+                    <tr>
                         <td>Shop id</td>
-                        <td>${SF_VAR.shop_id}</td>
+                        <td>
+                            <span  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">${SF_VAR.shop_id}</span>
+                            <button class="btn btn-primary"  onclick="sendMessage('${SF_CONST.EVENT_URL_LOGIN_AS}', '${SF_VAR.shop_id}')">
+                                <i class="fa fa-external-link-square" aria-hidden="true"></i> Login as
+                            </button>
+                            </td>
                     </tr>
                     <tr  onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
                         <td>${SF_VAR.page_type}</td>
@@ -641,7 +693,7 @@ function sfToggleDebugIcon() {
 function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
-    if (!SF_VAR.cart_token || !SF_VAR.checkout_token  || !SF_VAR.access_token) {
+    if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token) {
         const regex = /"/gi
         SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
         if (SF_VAR.cart_token) {
