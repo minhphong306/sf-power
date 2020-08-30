@@ -38,7 +38,7 @@
     </style>
 
 </head>
-<body>
+<body style="background-color: transparent">
 <div class="container">
     <div class="row">
         <div class="col-md-5">
@@ -50,7 +50,7 @@
                 <div class="mp-panel-menu panel-body">
                     <p class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
                         <i class="fa fa-info-circle"></i>
-                        Tip: Sử dụng phím tắt Ctrl + Alt + X để ẩn/hiện icon</p>
+                        Tip: Tính năng chia sẻ cart cực xịn mới ra lò ở tab công cụ</p>
                     <div>
                         <!-- Nav tabs -->
                         <ul class="nav nav-tabs" role="tablist">
@@ -174,9 +174,82 @@
                                             </button>
                                         </td>
                                     </tr>
+                                    <tr>
+                                        <td>Sao chép cart
+                                            <a role="button" data-toggle="collapse" data-parent="#accordion"
+                                               href="#wtf_is_this" aria-expanded="true"
+                                               aria-controls="collapseOne"
+                                               class="fa fa-question-circle">
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-primary"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_EXPORT_CART}', 'hihi')">
+                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>
+                                                Chia sẻ cart
+                                            </button>
 
+                                            <button
+                                                    role="button" data-toggle="collapse" data-parent="#accordion"
+                                                    href="#import_url" aria-expanded="true"
+                                                    aria-controls="collapseOne"
+                                                    class="btn btn-primary"
+                                                    onclick="import_action='${SF_CONST.EVENT_IMPORT_CART}';">
+                                                <i class="fa fa-cloud-download" aria-hidden="true"></i>
+                                                Import cart
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!--                                    <tr>-->
+                                    <!--                                        <td>Admin URL-->
+                                    <!--                                            <a role="button" data-toggle="collapse" data-parent="#accordion"-->
+                                    <!--                                               href="#wtf_is_this" aria-expanded="true"-->
+                                    <!--                                               aria-controls="collapseOne"-->
+                                    <!--                                               class="fa fa-question-circle">-->
+                                    <!--                                            </a>-->
+                                    <!--                                        </td>-->
+                                    <!--                                        <td>-->
+                                    <!--                                            <button class="btn btn-primary"-->
+                                    <!--                                                    onclick="sendMessage('${SF_CONST.EVENT_EXPORT_ADMIN_URL}', 'hihi')">-->
+                                    <!--                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>-->
+                                    <!--                                                Chia sẻ link-->
+                                    <!--                                            </button>-->
+
+                                    <!--                                            <button-->
+                                    <!--                                                    role="button" data-toggle="collapse" data-parent="#accordion"-->
+                                    <!--                                                    href="#import_url" aria-expanded="true"-->
+                                    <!--                                                    aria-controls="collapseOne"-->
+                                    <!--                                                    class="btn btn-primary"-->
+                                    <!--                                                    onclick="import_action='${SF_CONST.EVENT_IMPORT_ADMIN_URL}';">-->
+                                    <!--                                                <i class="fa fa-cloud-download" aria-hidden="true"></i>-->
+                                    <!--                                                Import link-->
+                                    <!--                                            </button>-->
+                                    <!--                                        </td>-->
+                                    <!--                                    </tr>-->
                                     </tbody>
                                 </table>
+
+                                <div id="import_url" class="panel-collapse collapse" role="tabpanel"
+                                     aria-labelledby="headingOne">
+                                    <div class="panel-body">
+                                         <textarea id="import_url_content" class="form-control" rows="3"
+                                                   placeholder="Nhập nội dung cần import"
+                                                   style="margin-bottom: 10px;"></textarea>
+                                        <button class="btn btn-default" onclick="importUrl()">
+                                            <i class="fa fa-cloud-download"></i>
+                                            Import ngay
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="wtf_is_this" class="panel-collapse collapse" role="tabpanel"
+                                     aria-labelledby="headingOne" style="padding-left: 10px; font-size: 15px;">
+                                    <p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p>
+                                    <hr>
+                                    <p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi cho người cần chia sẻ</p>
+                                    <p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg. </p>
+                                </div>
                             </div>
 
                             <div role="tabpanel" class="tab-pane" id="urls">
@@ -260,23 +333,23 @@
                                         float: left;
                                     }
 
-                                    .span4 .img-right {
-                                        float: right;
-                                    }
                                 </style>
                                 <div>
                                     <div class="block" style="padding-bottom: 10px; padding-top:10px;">
                                         <div class="row">
                                             <div class="span4" style=" font-size: 15px;">
-                                                <img class="img-left" src="https://photo2.tinhte.vn/data/attachment-files/2020/08/5117254_will-find-you-andi-will-say-thank-you-meme-maker-51714148.jpg"
+                                                <img class="img-left"
+                                                     src="https://photo2.tinhte.vn/data/attachment-files/2020/08/5117254_will-find-you-andi-will-say-thank-you-meme-maker-51714148.jpg"
                                                      style="width: 200px; margin-left: 20px;"/>
                                                 <p>Cảm ơn bạn đã tin tưởng và sử dụng extension.</p>
                                                 <p>Hi vọng, nó giúp bạn làm việc hiệu quả hơn ^^</p>
                                                 <p class="text-danger" id="textStatus"></p>
                                                 <p>
-                                                    <button onclick="changeStatus('like')" class="btn btn-success"><i class="fa fa-thumbs-o-up"></i>
+                                                    <button onclick="changeStatus('like')" class="btn btn-success"><i
+                                                            class="fa fa-thumbs-o-up"></i>
                                                     </button>
-                                                    <button onclick="changeStatus('dislike')" class="btn btn-danger"><i class="fa fa-thumbs-o-down"></i>
+                                                    <button onclick="changeStatus('dislike')" class="btn btn-danger"><i
+                                                            class="fa fa-thumbs-o-down"></i>
                                                     </button>
                                                 </p>
                                             </div>
@@ -331,18 +404,22 @@
 
 
                                         <div id="feedback_form">
-                                            <p style="padding-left: 10px; font-size: 15px;">Bạn có góp ý? Ngại gì không gửi ngay cho mình
+                                            <p style="padding-left: 10px; font-size: 15px;">Bạn có góp ý? Ngại gì không
+                                                gửi ngay cho mình
                                                 ^^</p>
-                                            <input id="feedback_name" type="text" class="form-control" placeholder="Tên bạn là gì?"
+                                            <input id="feedback_name" type="text" class="form-control"
+                                                   placeholder="Tên bạn là gì?"
                                                    style="margin-bottom: 10px;">
-                                            <textarea id="feedback_note" class="form-control" rows="3" placeholder="Bạn có góp ý gì?"
+                                            <textarea id="feedback_note" class="form-control" rows="3"
+                                                      placeholder="Bạn có góp ý gì?"
                                                       style="margin-bottom: 10px;"></textarea>
                                             <button class="btn btn-default" onclick="sendFeedback()">
                                                 <i class="fa fa-send"></i>
                                                 Gửi ngay
                                             </button>
                                         </div>
-                                        <div  class="bg bg-success" id="feedback_response" style="font-size: 16px; border-radius: 10px; padding: 10px; display: none;">
+                                        <div class="bg bg-success" id="feedback_response"
+                                             style="font-size: 16px; border-radius: 10px; padding: 10px; display: none;">
                                             Cảm ơn bạn. Tớ đã nhận được góp ý và sẽ phản hồi lại bạn nếu có thể ^^
                                         </div>
                                     </div>

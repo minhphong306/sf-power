@@ -20,6 +20,7 @@ let SF_VAR = {
     cart_token: '',
     checkout_token: '',
     access_token: '',
+    access_token_expire: '',
     preview_access_token: 'dài nên ko hiển thị. Cứ click là copy',
     env: ''
 }
@@ -35,6 +36,7 @@ const SF_CONST = {
     KEY_FEATURE_SWITCH: "sbase_feature_switch",
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
     KEY_ACCESS_TOKEN: "sbase_shop-access-token",
+    KEY_ACCESS_TOKEN_EXPIRE: "sbase_shop-access-token_expire",
 
     ENV_DEV: 'dev',
     ENV_STAG: 'stag',
@@ -60,11 +62,17 @@ const SF_CONST = {
     EVENT_URL_PAGE_SINGLE: 'page_single',
     EVENT_URL_COLLECTION_LIST: 'collection_list',
     EVENT_URL_LOGIN_AS: 'login_as',
+    EVENT_IMPORT_CART: 'import_cart',
+    EVENT_EXPORT_CART: 'export_cart',
+    EVENT_EXPORT_ADMIN_URL: 'export_admin_url',
+    EVENT_IMPORT_ADMIN_URL: 'import_admin_url',
 
     ID_SF_TOOL_FRAME: 'sf_tool_iframe',
     // Send event
     EVENT_UPDATE_TOKEN: 'update_token',
 
+    // Chrome sync storage
+    KEY_SYNC_ACTION: 'sync_action'
 }
 
 
@@ -88,6 +96,45 @@ function detectEnv() {
     SF_VAR.env = SF_CONST.ENV_PROD
 }
 
+function doSyncAction() {
+    chrome.storage.sync.get([`${SF_CONST.KEY_SYNC_ACTION}`], function (result) {
+        const data = utils.parseJSON(result.sync_action);
+        if (!data) {
+            utils.sflog('Cannot parse sync action')
+            return
+        }
+
+        // if url not from action -> return
+        if (!data.data.url.includes(window.location.host)) {
+            utils.sflog('Sync action not for this url. Return now')
+            return
+        }
+
+        // Switch action to do (set to local storage)
+        debugger
+        switch (data.action) {
+            case SF_CONST.EVENT_IMPORT_CART:
+                storage.set(SF_CONST.KEY_CART_TOKEN, `"${data.data.cart_token}"`, false)
+                storage.set(SF_CONST.KEY_CHECKOUT_TOKEN, `"${data.data.checkout_token}"`, false)
+                break;
+            case SF_CONST.EVENT_IMPORT_ADMIN_URL:
+                storage.set(SF_CONST.KEY_ACCESS_TOKEN, `"${data.data.access_token}"`, false)
+                storage.set(SF_CONST.KEY_ACCESS_TOKEN_EXPIRE, `"${data.data.access_token_expire}"`, false)
+                break;
+            default:
+                utils.sflog("Invalid action: ", data.action)
+                return
+        }
+
+        // Remove from sync storage
+        chrome.storage.sync.remove(['sync_action'], function () {
+            debugger
+            utils.sflog('Remove action success');
+            window.location.href = data.data.url
+        });
+    });
+}
+
 async function startApplication() {
     // Get from cache
     getFromCache()
@@ -102,6 +149,10 @@ async function startApplication() {
             return
         }
     }
+
+    // Check has any sync action
+    // Get from storage. If has action -> do action, clear sync storage and reload page
+    doSyncAction();
 
     // detect env
     detectEnv()
@@ -205,6 +256,8 @@ function getFromCache() {
     if (SF_VAR.access_token) {
         SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
     }
+
+    SF_VAR.access_token_expire = storage.get(SF_CONST.KEY_ACCESS_TOKEN_EXPIRE, false);
 }
 
 async function getBootstrap() {
@@ -265,6 +318,17 @@ function addDebugPanel() {
         if (!rawMsg) {
             return
         }
+        console.log('receive msg: ', rawMsg)
+
+        // chrome.storage.sync.set({test1: rawMsg}, function () {
+        //     console.log('Value is set to ' + rawMsg);
+        // });
+        //
+        // setTimeout(function () {
+        //     chrome.storage.sync.get(['test1'], function (result) {
+        //         console.log('Value currently is ', result);
+        //     });
+        // }, 2000)
 
         const pathName = location.pathname;
         let pageHandle = '';
@@ -293,7 +357,7 @@ function addDebugPanel() {
         switch (name) {
             case SF_CONST.EVENT_COPY:
                 utils.copyToClipboard(data);
-                utils.show_notify('Copied to clipboard', 'OK', 'success');
+                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
                 break;
             case SF_CONST.EVENT_CLEAR_CART:
                 storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
@@ -323,7 +387,7 @@ function addDebugPanel() {
                 break;
             case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
                 if (!pageHandle) {
-                    utils.show_notify('Not product page', 'Can\'t open product single url', 'warning')
+                    utils.show_notify('Không mở được', 'Đứng ở trang product detail thì mới mở được JSON chứ pa =.=', 'warning')
                     return
                 }
                 window.open(`${window.location.origin}/api/catalog/product.json?handle=${pageHandle}`);
@@ -336,14 +400,14 @@ function addDebugPanel() {
                 break;
             case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
                 if (!pageHandle) {
-                    utils.show_notify('Not collection page', 'Can\'t open collection single url', 'warning')
+                    utils.show_notify('Không mở được', 'Đứng ở trang collection detail thì mới mở được JSON chứ pa =.=', 'warning')
                     return
                 }
                 window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${pageHandle}`);
                 break;
             case SF_CONST.EVENT_URL_PAGE_SINGLE:
                 if (!pageHandle) {
-                    utils.show_notify('Not page page', 'Can\'t open page single url', 'warning')
+                    utils.show_notify('Không mở được', 'Đứng ở trang page detail thì mới mở được JSON chứ pa =.=', 'warning')
                     return
                 }
                 window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
@@ -371,6 +435,53 @@ function addDebugPanel() {
                 hiveUrl = `${hiveUrl}/admin/app/shop/list?filter[id][value]=${data}`
                 window.open(hiveUrl);
                 break;
+            case SF_CONST.EVENT_EXPORT_CART:
+                // Build object export cart
+                const exportCartObj = {
+                    "action": SF_CONST.EVENT_IMPORT_CART,
+                    "data": {
+                        "url": `${window.location.origin}/cart`,
+                        "cart_token": `${SF_VAR.cart_token}`,
+                        "checkout_token": `${SF_VAR.checkout_token}`
+                    }
+                }
+                // Copy to clip board
+                utils.copyToClipboard(JSON.stringify(exportCartObj));
+                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+                break;
+            case SF_CONST.EVENT_EXPORT_ADMIN_URL:
+                // Build object export cart
+                const exportUrlObj = {
+                    "action": SF_CONST.EVENT_IMPORT_ADMIN_URL,
+                    "data": {
+                        "url": `${window.location.href}`,
+                        "access_token": `${SF_VAR.access_token}`,
+                        "access_token_expire": `${SF_VAR.access_token_expire}`
+                    }
+                }
+                // Copy to clip board
+                utils.copyToClipboard(JSON.stringify(exportUrlObj));
+                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+                break;
+            case SF_CONST.EVENT_IMPORT_CART:
+            case SF_CONST.EVENT_IMPORT_ADMIN_URL:
+                const eventObj = utils.parseJSON(data);
+                if (!eventObj || !eventObj.data || eventObj.url) {
+                    utils.show_notify('Có gì đó éo đúng', 'Hình như data sai rồi pa =.=', 'danger');
+                    return
+                }
+
+                // Set sync action
+                const obj = {
+                    'sync_action': data
+                }
+                chrome.storage.sync.set(obj, function () {
+                    utils.sflog('Set to sync storage ' + rawMsg);
+                });
+
+                // Go to url
+                window.location.href = eventObj.data.url
+                break;
         }
     });
 
@@ -378,6 +489,7 @@ function addDebugPanel() {
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></s` + `cript>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>
     <script>
+        let import_action = ''; 
         // Send a message to the parent
         var sendMessage = function (name, data) {
             // Make sure you are sending a string, and to stringify JSON
@@ -475,6 +587,11 @@ function addDebugPanel() {
         });
     }
     
+    function importUrl(){
+        const data = document.getElementById('import_url_content').value;
+        sendMessage(import_action, data);
+    }
+    
     </s` + `cript>`
 
 
@@ -494,7 +611,7 @@ function addDebugPanel() {
 </style>
 
 </head>
-<body>
+<body style="background-color: transparent">
 <div class="container">
     <div class="row">
         <div class="col-md-5">
@@ -506,7 +623,7 @@ function addDebugPanel() {
                 <div class="mp-panel-menu panel-body">
                     <p class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
                         <i class="fa fa-info-circle"></i>
-                        Tip: Sử dụng phím tắt Ctrl + Alt + X để ẩn/hiện icon</p>
+                        Tip: Tính năng chia sẻ cart cực xịn mới ra lò ở tab công cụ</p>
                     <div>
                         <!-- Nav tabs -->
                         <ul class="nav nav-tabs" role="tablist">
@@ -630,9 +747,82 @@ function addDebugPanel() {
                                             </button>
                                         </td>
                                     </tr>
+                                    <tr>
+                                        <td>Sao chép cart
+                                            <a role="button" data-toggle="collapse" data-parent="#accordion"
+                                               href="#wtf_is_this" aria-expanded="true"
+                                               aria-controls="collapseOne"
+                                               class="fa fa-question-circle">
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-primary"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_EXPORT_CART}', 'hihi')">
+                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>
+                                                Chia sẻ cart
+                                            </button>
 
+                                            <button
+                                                    role="button" data-toggle="collapse" data-parent="#accordion"
+                                                    href="#import_url" aria-expanded="true"
+                                                    aria-controls="collapseOne"
+                                                    class="btn btn-primary"
+                                                    onclick="import_action='${SF_CONST.EVENT_IMPORT_CART}';">
+                                                <i class="fa fa-cloud-download" aria-hidden="true"></i>
+                                                Import cart
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!--                                    <tr>-->
+                                    <!--                                        <td>Admin URL-->
+                                    <!--                                            <a role="button" data-toggle="collapse" data-parent="#accordion"-->
+                                    <!--                                               href="#wtf_is_this" aria-expanded="true"-->
+                                    <!--                                               aria-controls="collapseOne"-->
+                                    <!--                                               class="fa fa-question-circle">-->
+                                    <!--                                            </a>-->
+                                    <!--                                        </td>-->
+                                    <!--                                        <td>-->
+                                    <!--                                            <button class="btn btn-primary"-->
+                                    <!--                                                    onclick="sendMessage('${SF_CONST.EVENT_EXPORT_ADMIN_URL}', 'hihi')">-->
+                                    <!--                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>-->
+                                    <!--                                                Chia sẻ link-->
+                                    <!--                                            </button>-->
+
+                                    <!--                                            <button-->
+                                    <!--                                                    role="button" data-toggle="collapse" data-parent="#accordion"-->
+                                    <!--                                                    href="#import_url" aria-expanded="true"-->
+                                    <!--                                                    aria-controls="collapseOne"-->
+                                    <!--                                                    class="btn btn-primary"-->
+                                    <!--                                                    onclick="import_action='${SF_CONST.EVENT_IMPORT_ADMIN_URL}';">-->
+                                    <!--                                                <i class="fa fa-cloud-download" aria-hidden="true"></i>-->
+                                    <!--                                                Import link-->
+                                    <!--                                            </button>-->
+                                    <!--                                        </td>-->
+                                    <!--                                    </tr>-->
                                     </tbody>
                                 </table>
+
+                                <div id="import_url" class="panel-collapse collapse" role="tabpanel"
+                                     aria-labelledby="headingOne">
+                                    <div class="panel-body">
+                                         <textarea id="import_url_content" class="form-control" rows="3"
+                                                   placeholder="Nhập nội dung cần import"
+                                                   style="margin-bottom: 10px;"></textarea>
+                                        <button class="btn btn-default" onclick="importUrl()">
+                                            <i class="fa fa-cloud-download"></i>
+                                            Import ngay
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="wtf_is_this" class="panel-collapse collapse" role="tabpanel"
+                                     aria-labelledby="headingOne" style="padding-left: 10px; font-size: 15px;">
+                                    <p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p>
+                                    <hr>
+                                    <p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi cho người cần chia sẻ</p>
+                                    <p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg. </p>
+                                </div>
                             </div>
 
                             <div role="tabpanel" class="tab-pane" id="urls">
@@ -716,23 +906,23 @@ function addDebugPanel() {
                                         float: left;
                                     }
 
-                                    .span4 .img-right {
-                                        float: right;
-                                    }
                                 </style>
                                 <div>
                                     <div class="block" style="padding-bottom: 10px; padding-top:10px;">
                                         <div class="row">
                                             <div class="span4" style=" font-size: 15px;">
-                                                <img class="img-left" src="https://photo2.tinhte.vn/data/attachment-files/2020/08/5117254_will-find-you-andi-will-say-thank-you-meme-maker-51714148.jpg"
+                                                <img class="img-left"
+                                                     src="https://photo2.tinhte.vn/data/attachment-files/2020/08/5117254_will-find-you-andi-will-say-thank-you-meme-maker-51714148.jpg"
                                                      style="width: 200px; margin-left: 20px;"/>
                                                 <p>Cảm ơn bạn đã tin tưởng và sử dụng extension.</p>
                                                 <p>Hi vọng, nó giúp bạn làm việc hiệu quả hơn ^^</p>
                                                 <p class="text-danger" id="textStatus"></p>
                                                 <p>
-                                                    <button onclick="changeStatus('like')" class="btn btn-success"><i class="fa fa-thumbs-o-up"></i>
+                                                    <button onclick="changeStatus('like')" class="btn btn-success"><i
+                                                            class="fa fa-thumbs-o-up"></i>
                                                     </button>
-                                                    <button onclick="changeStatus('dislike')" class="btn btn-danger"><i class="fa fa-thumbs-o-down"></i>
+                                                    <button onclick="changeStatus('dislike')" class="btn btn-danger"><i
+                                                            class="fa fa-thumbs-o-down"></i>
                                                     </button>
                                                 </p>
                                             </div>
@@ -787,18 +977,22 @@ function addDebugPanel() {
 
 
                                         <div id="feedback_form">
-                                            <p style="padding-left: 10px; font-size: 15px;">Bạn có góp ý? Ngại gì không gửi ngay cho mình
+                                            <p style="padding-left: 10px; font-size: 15px;">Bạn có góp ý? Ngại gì không
+                                                gửi ngay cho mình
                                                 ^^</p>
-                                            <input id="feedback_name" type="text" class="form-control" placeholder="Tên bạn là gì?"
+                                            <input id="feedback_name" type="text" class="form-control"
+                                                   placeholder="Tên bạn là gì?"
                                                    style="margin-bottom: 10px;">
-                                            <textarea id="feedback_note" class="form-control" rows="3" placeholder="Bạn có góp ý gì?"
+                                            <textarea id="feedback_note" class="form-control" rows="3"
+                                                      placeholder="Bạn có góp ý gì?"
                                                       style="margin-bottom: 10px;"></textarea>
                                             <button class="btn btn-default" onclick="sendFeedback()">
                                                 <i class="fa fa-send"></i>
                                                 Gửi ngay
                                             </button>
                                         </div>
-                                        <div  class="bg bg-success" id="feedback_response" style="font-size: 16px; border-radius: 10px; padding: 10px; display: none;">
+                                        <div class="bg bg-success" id="feedback_response"
+                                             style="font-size: 16px; border-radius: 10px; padding: 10px; display: none;">
                                             Cảm ơn bạn. Tớ đã nhận được góp ý và sẽ phản hồi lại bạn nếu có thể ^^
                                         </div>
                                     </div>
