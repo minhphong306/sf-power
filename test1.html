@@ -98,9 +98,15 @@
                                             </button>
                                         </td>
                                     </tr>
+                                    <tr>
+                                        <td>User id</td>
+                                        <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.user_id}')">
+                                            <span>${SF_VAR.user_id}</span>
+                                        </td>
+                                    </tr>
                                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
-                                        <td>${SF_VAR.page_type}</td>
-                                        <td>${SF_VAR.page_id}</td>
+                                        <td id="page_type">${SF_VAR.page_type}</td>
+                                        <td id="page_id">${SF_VAR.page_id}</td>
                                     </tr>
                                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
                                         <td>Cart token</td>
@@ -247,8 +253,10 @@
                                      aria-labelledby="headingOne" style="padding-left: 10px; font-size: 15px;">
                                     <p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p>
                                     <hr>
-                                    <p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi cho người cần chia sẻ</p>
-                                    <p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg. </p>
+                                    <p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi cho
+                                        người cần chia sẻ</p>
+                                    <p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm
+                                        import. Xonggg. </p>
                                 </div>
                             </div>
 

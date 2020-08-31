@@ -21,8 +21,11 @@ let SF_VAR = {
     checkout_token: '',
     access_token: '',
     access_token_expire: '',
+    shop: '',
+    shop_expire: '',
     preview_access_token: 'dài nên ko hiển thị. Cứ click là copy',
-    env: ''
+    env: '',
+    current_pathname: ''
 }
 
 const SF_CONST = {
@@ -66,13 +69,16 @@ const SF_CONST = {
     EVENT_EXPORT_CART: 'export_cart',
     EVENT_EXPORT_ADMIN_URL: 'export_admin_url',
     EVENT_IMPORT_ADMIN_URL: 'import_admin_url',
+    EVENT_SET_STORAGE: 'set_storage',
 
     ID_SF_TOOL_FRAME: 'sf_tool_iframe',
     // Send event
     EVENT_UPDATE_TOKEN: 'update_token',
+    EVENT_UPDATE_PAGE: 'update_page',
 
     // Chrome sync storage
-    KEY_SYNC_ACTION: 'sync_action'
+    KEY_SYNC_ACTION: 'sync_action',
+
 }
 
 
@@ -117,10 +123,30 @@ function doSyncAction() {
                 storage.set(SF_CONST.KEY_CART_TOKEN, `"${data.data.cart_token}"`, false)
                 storage.set(SF_CONST.KEY_CHECKOUT_TOKEN, `"${data.data.checkout_token}"`, false)
                 break;
-            case SF_CONST.EVENT_IMPORT_ADMIN_URL:
-                storage.set(SF_CONST.KEY_ACCESS_TOKEN, `"${data.data.access_token}"`, false)
-                storage.set(SF_CONST.KEY_ACCESS_TOKEN_EXPIRE, `"${data.data.access_token_expire}"`, false)
-                break;
+            // case SF_CONST.EVENT_IMPORT_ADMIN_URL:
+            //     const listData = data.data.kvs || []
+            //
+            //     for (const item in listData) {
+            //         const key = item['k']
+            //         const value = item['v']
+            //
+            //         console.log('Got key: ', key, '; value: ', value)
+            //     }
+            //
+            //     // Set to storage
+            //
+            //     // Remove old sync action
+            //     chrome.storage.sync.remove(['sync_action'], function () {
+            //         utils.sflog('Remove action success');
+            //
+            //         // Set new sync action
+            //         chrome.storage.sync.set(obj, function () {
+            //             utils.sflog('Set to sync storage ' + rawMsg);
+            //             // Redirect to admin url
+            //             window.location.href = data.data.url
+            //         });
+            //     });
+            //     break;
             default:
                 utils.sflog("Invalid action: ", data.action)
                 return
@@ -128,11 +154,28 @@ function doSyncAction() {
 
         // Remove from sync storage
         chrome.storage.sync.remove(['sync_action'], function () {
-            debugger
             utils.sflog('Remove action success');
             window.location.href = data.data.url
         });
     });
+}
+
+function getUserId() {
+    try {
+        let rawShop = localStorage.getItem('sbase_shop');
+        if (!rawShop || rawShop.length === 0) {
+            return
+        }
+
+        // Replace redundant double quote
+        rawShop = rawShop.substring(1, rawShop.length - 1);
+        const decodedBase64 = atob(rawShop);
+        const rawObj = decodeURI(decodedBase64);
+        const obj = JSON.parse(rawObj);
+        SF_VAR.user_id = obj.user_id;
+    } catch (e) {
+        utils.sflog('Error when get user id: ', e)
+    }
 }
 
 async function startApplication() {
@@ -156,6 +199,8 @@ async function startApplication() {
 
     // detect env
     detectEnv()
+
+    getUserId();
 
     if (!SF_VAR.page_type) {
         await getPageInfo();
@@ -182,7 +227,14 @@ async function startApplication() {
 
 async function getPageInfo() {
     const pathName = location.pathname;
-    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName) && !pathName.includes('/admin')) {
+    SF_VAR.current_pathname = pathName;
+    if (pathName.includes('/admin') || pathName.includes('.json')) {
+        SF_VAR.page_type = "NOT_KNOWN_PAGE"
+        SF_VAR.page_id = "0"
+        return
+    }
+
+    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
         SF_VAR.page_type = 'Product';
         SF_VAR.handle = pathName.split('products/')[1];
         const url = utils.getProductSingleUrl(SF_VAR.handle)
@@ -190,7 +242,7 @@ async function getPageInfo() {
         SF_VAR.page_id = sfPageObject ? sfPageObject.id : 0
         console.log('Product page: ', sfPageId)
         return
-    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName) && !pathName.includes('/admin')) {
+    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
         SF_VAR.page_type = 'Collection';
         SF_VAR.handle = pathName.split('collections/')[1];
 
@@ -247,7 +299,7 @@ function getFromCache() {
     if (SF_VAR.cart_token) {
         SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
     }
-    SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+    SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CHECKOUT_TOKEN, false);
     if (SF_VAR.checkout_token) {
         SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
     }
@@ -319,16 +371,6 @@ function addDebugPanel() {
             return
         }
         console.log('receive msg: ', rawMsg)
-
-        // chrome.storage.sync.set({test1: rawMsg}, function () {
-        //     console.log('Value is set to ' + rawMsg);
-        // });
-        //
-        // setTimeout(function () {
-        //     chrome.storage.sync.get(['test1'], function (result) {
-        //         console.log('Value currently is ', result);
-        //     });
-        // }, 2000)
 
         const pathName = location.pathname;
         let pageHandle = '';
@@ -449,20 +491,33 @@ function addDebugPanel() {
                 utils.copyToClipboard(JSON.stringify(exportCartObj));
                 utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
                 break;
-            case SF_CONST.EVENT_EXPORT_ADMIN_URL:
-                // Build object export cart
-                const exportUrlObj = {
-                    "action": SF_CONST.EVENT_IMPORT_ADMIN_URL,
-                    "data": {
-                        "url": `${window.location.href}`,
-                        "access_token": `${SF_VAR.access_token}`,
-                        "access_token_expire": `${SF_VAR.access_token_expire}`
-                    }
-                }
-                // Copy to clip board
-                utils.copyToClipboard(JSON.stringify(exportUrlObj));
-                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
-                break;
+            // case SF_CONST.EVENT_EXPORT_ADMIN_URL:
+            //     // Build object export url
+            //     let listObj = []
+            //     for (const key in localStorage) {
+            //         // Get all keys start with sbase_
+            //         if (key.includes('sbase_')) {
+            //             const obj = {
+            //                 k: key,
+            //                 v: localStorage.getItem(key)
+            //             }
+            //
+            //             listObj.push(obj);
+            //         }
+            //     }
+            //
+            //     const exportUrlObj = {
+            //         "action": SF_CONST.EVENT_IMPORT_ADMIN_URL,
+            //         "data": {
+            //             "hostname": `${window.location.hostname}`,
+            //             "url": `${window.location.href}`,
+            //             "kvs": listObj,
+            //         }
+            //     }
+            //     // Copy to clip board
+            //     utils.copyToClipboard(JSON.stringify(exportUrlObj));
+            //     utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+            //     break;
             case SF_CONST.EVENT_IMPORT_CART:
             case SF_CONST.EVENT_IMPORT_ADMIN_URL:
                 const eventObj = utils.parseJSON(data);
@@ -481,6 +536,11 @@ function addDebugPanel() {
 
                 // Go to url
                 window.location.href = eventObj.data.url
+                // if (name === SF_CONST.EVENT_IMPORT_CART) {
+                //     window.location.href = eventObj.data.url;
+                // } else {
+                //     window.location.href = eventObj.data.hostname;
+                // }
                 break;
         }
     });
@@ -531,6 +591,10 @@ function addDebugPanel() {
                     document.getElementById('cart_token').innerText = data.cart_token;
                     document.getElementById('checkout_token').innerText = data.checkout_token;
                     document.getElementById('access_token').innerText = data.access_token;
+                    break;
+                case '${SF_CONST.EVENT_UPDATE_PAGE}':
+                    document.getElementById('page_type').innerText = data.page_type;
+                    document.getElementById('page_id').innerText = data.page_id;
                     break;
             }
         });
@@ -671,9 +735,15 @@ function addDebugPanel() {
                                             </button>
                                         </td>
                                     </tr>
+                                    <tr>
+                                        <td>User id</td>
+                                        <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.user_id}')">
+                                            <span>${SF_VAR.user_id}</span>
+                                        </td>
+                                    </tr>
                                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
-                                        <td>${SF_VAR.page_type}</td>
-                                        <td>${SF_VAR.page_id}</td>
+                                        <td id="page_type">${SF_VAR.page_type}</td>
+                                        <td id="page_id">${SF_VAR.page_id}</td>
                                     </tr>
                                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
                                         <td>Cart token</td>
@@ -820,8 +890,10 @@ function addDebugPanel() {
                                      aria-labelledby="headingOne" style="padding-left: 10px; font-size: 15px;">
                                     <p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p>
                                     <hr>
-                                    <p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi cho người cần chia sẻ</p>
-                                    <p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg. </p>
+                                    <p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi cho
+                                        người cần chia sẻ</p>
+                                    <p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm
+                                        import. Xonggg. </p>
                                 </div>
                             </div>
 
@@ -1065,7 +1137,7 @@ function sfToggleDebugIcon() {
 
 }
 
-function sfToggleDebugBar() {
+async function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
     if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token) {
@@ -1074,7 +1146,7 @@ function sfToggleDebugBar() {
         if (SF_VAR.cart_token) {
             SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
         }
-        SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+        SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CHECKOUT_TOKEN, false);
         if (SF_VAR.checkout_token) {
             SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
         }
@@ -1091,6 +1163,17 @@ function sfToggleDebugBar() {
         })
     }
 
+    // Update page id
+    const currentPath = window.location.pathname;
+    if (currentPath !== SF_VAR.current_pathname) {
+        SF_VAR.current_pathname = currentPath;
+        await getPageInfo();
+        sendMessageToChild(SF_CONST.EVENT_UPDATE_PAGE, {
+            page_id: SF_VAR.page_id,
+            page_type: SF_VAR.page_type,
+        });
+    }
+
 
     console.log('toggle debug bar now')
     if (SF_VAR.debug_open) {
@@ -1105,21 +1188,6 @@ function sfToggleDebugBar() {
         sfToolIcon.style.width = '0px';
         sfToolIcon.style.height = '0px';
     }
-}
-
-function listenUrlChange(event) {
-    var pushState = history.pushState;
-    history.pushState = function () {
-        pushState.apply(history, arguments);
-
-        // if not page, producct/ collection -> return
-
-        // Get from cache
-
-        // request url
-
-        // Send msg to child
-    };
 }
 
 function keydown(evt) {
