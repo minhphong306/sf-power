@@ -11,11 +11,17 @@
     "128": "icons/128.png"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "contextMenus"
   ],
   "browser_action": {
     "default_title": "SF Power",
     "default_popup": "pages/popup.html"
+  },
+  "background": {
+    "scripts": [
+      "js/background.js"
+    ]
   },
   "content_scripts": [
     {

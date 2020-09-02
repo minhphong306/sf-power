@@ -117,7 +117,11 @@ const utils = {
             document.onmousemove = null;
         }
     },
-    parseJSON(raw) {
+    parseJSON(raw, sourceCall) {
+        if (!(raw === 'string' || raw instanceof String)) {
+            return raw;
+        }
+
         try {
             const parsed = JSON.parse(raw);
             return parsed;

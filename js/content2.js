@@ -106,7 +106,11 @@ function detectEnv() {
 
 function doSyncAction() {
     chrome.storage.sync.get([`${SF_CONST.KEY_SYNC_ACTION}`], function (result) {
-        const data = utils.parseJSON(result.sync_action);
+        if (!result || !result.sync_action) {
+            return
+        }
+
+        const data = utils.parseJSON(result.sync_action, 'sync_action');
         if (!data) {
             utils.sflog('Cannot parse sync action')
             return
@@ -159,7 +163,7 @@ async function getQuotes() {
     try {
         let response = await doAjax(SF_CONST.QUOTE_URL)
         let rawQuotes = response["files"]["quotes.json"]["content"]
-        SF_VAR.quotes = utils.parseJSON(rawQuotes) || ["Chúc bạn ngày mới tốt lành"];
+        SF_VAR.quotes = utils.parseJSON(rawQuotes, 'Quote') || ["Chúc bạn ngày mới tốt lành"];
     } catch (e) {
         console.log('error get quotes: ', e)
     }
@@ -338,6 +342,186 @@ function addIcon() {
     $('body').append(html);
 }
 
+chrome.runtime.onMessage.addListener(
+    function (request, sender, sendResponse) {
+        processEvent(request);
+
+        // Neu khong send response lai thi gap loi "The message port closed before a response was received."
+        sendResponse({farewell: "goodbye"});
+
+        // console.log(sender.tab ?
+        //     "from a content script:" + sender.tab.url :
+        //     "from the extension");
+        // if (request.greeting == "hello")
+        // sendResponse({farewell: "goodbye"});
+    });
+
+function processEvent(rawMsg) {
+    if (!rawMsg) {
+        return
+    }
+
+    const pathName = location.pathname;
+    let pageHandle = '';
+    if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
+        pageHandle = pathName.split('products/')[1];
+    } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
+        pageHandle = pathName.split('collections/')[1];
+    } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
+        pageHandle = pathName.split('pages/')[1];
+    }
+
+    const msg = utils.parseJSON(rawMsg, 'processEvent');
+    if (!msg) {
+        return
+    }
+
+    const name = msg.name;
+    const data = msg.data;
+    if (!msg.name) {
+        return
+    }
+
+    const url = window.location.href;
+    const urlObj = new URL(window.location.href);
+
+    switch (name) {
+        case SF_CONST.EVENT_COPY:
+            utils.copyToClipboard(data);
+            utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+            break;
+        case SF_CONST.EVENT_CLEAR_CART:
+            storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
+            window.location.reload();
+            break;
+        case SF_CONST.EVENT_CLEAR_FS:
+            storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}`, false)
+            storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}_expire`, false)
+            window.location.reload();
+            break;
+        case SF_CONST.EVENT_PAGE_SPEED_GT:
+            openGtmetrixPs();
+            break;
+        case SF_CONST.EVENT_PAGE_SPEED_GG:
+            window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
+            break;
+        case SF_CONST.EVENT_PARAM_DEBUG:
+            urlObj.searchParams.append('sbase_debug', 1);
+            window.location.href = urlObj.href;
+            break;
+        case SF_CONST.EVENT_PARAM_CSR:
+            urlObj.searchParams.append('render_csr', 1);
+            window.location.href = urlObj.href;
+            break;
+        case SF_CONST.EVENT_URL_BOOTSTRAP:
+            window.open(utils.getBootstrapUrl());
+            break;
+        case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
+            if (!pageHandle) {
+                utils.show_notify('Không mở được', 'Đứng ở trang product detail thì mới mở được JSON chứ pa =.=', 'warning')
+                return
+            }
+            window.open(`${window.location.origin}/api/catalog/product.json?handle=${pageHandle}`);
+            break;
+        case SF_CONST.EVENT_URL_CART:
+            window.location.href = `${window.location.origin}/cart`;
+            break;
+        case SF_CONST.EVENT_URL_PRODUCT_LIST:
+            window.location.href = `${window.location.origin}/collections/all`;
+            break;
+        case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
+            if (!pageHandle) {
+                utils.show_notify('Không mở được', 'Đứng ở trang collection detail thì mới mở được JSON chứ pa =.=', 'warning')
+                return
+            }
+            window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${pageHandle}`);
+            break;
+        case SF_CONST.EVENT_URL_PAGE_SINGLE:
+            if (!pageHandle) {
+                utils.show_notify('Không mở được', 'Đứng ở trang page detail thì mới mở được JSON chứ pa =.=', 'warning')
+                return
+            }
+            window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
+            break;
+        case SF_CONST.EVENT_URL_COLLECTION_LIST:
+            window.location.href = `${window.location.origin}/collections`;
+            break;
+        case SF_CONST.EVENT_URL_LOGIN_AS:
+            let hiveUrl = '';
+            switch (SF_VAR.env) {
+                case SF_CONST.ENV_DEV:
+                    hiveUrl = SF_CONST.URL_HIVE_DEV;
+                    break;
+                case SF_CONST.ENV_STAG:
+                    hiveUrl = SF_CONST.URL_HIVE_STAG;
+                    break;
+                case SF_CONST.ENV_PROD:
+                    hiveUrl = SF_CONST.URL_HIVE_PROD;
+                    break;
+                default:
+                    utils.show_notify('Can\'t detect env', 'Can\'t open login as page', 'warning')
+                    return
+            }
+
+            hiveUrl = `${hiveUrl}/admin/app/shop/list?filter[id][value]=${data}`
+            window.open(hiveUrl);
+            break;
+        case SF_CONST.EVENT_EXPORT_CART:
+            // Build object export cart
+            const exportCartObj = {
+                "action": SF_CONST.EVENT_IMPORT_CART,
+                "data": {
+                    "url": `${window.location.origin}/cart`,
+                    "cart_token": `${SF_VAR.cart_token}`,
+                    "checkout_token": `${SF_VAR.checkout_token}`
+                }
+            }
+            // Copy to clip board
+            utils.copyToClipboard(JSON.stringify(exportCartObj));
+            utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+            break;
+        case SF_CONST.EVENT_SHARE_ADMIN_URL:
+            if (!window.location.href.includes('/admin/')) {
+                utils.show_notify('Không copy', 'Ứ copy đâu, vì không phải link admin', 'warning');
+                return
+            }
+
+            if (!SF_VAR.access_token) {
+                utils.show_notify('Không copy', 'Ứ copy đâu, vì không tìm thấy access token', 'warning');
+                return
+            }
+
+            let adminUrl = utils.getAppendedUrl('access_token', SF_VAR.access_token)
+            // Copy to clip board
+            utils.copyToClipboard(adminUrl);
+            utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+            break;
+        case SF_CONST.EVENT_IMPORT_CART:
+            const eventObj = utils.parseJSON(data, 'Import cart');
+            if (!eventObj || !eventObj.data || eventObj.url) {
+                utils.show_notify('Có gì đó éo đúng', 'Hình như data sai rồi pa =.=', 'danger');
+                return
+            }
+
+            // Set sync action
+            const obj = {
+                'sync_action': data
+            }
+            chrome.storage.sync.set(obj, function () {
+                utils.sflog('Set to sync storage ' + rawMsg);
+            });
+
+            // Go to url
+            window.location.href = eventObj.data.url
+            // if (name === SF_CONST.EVENT_IMPORT_CART) {
+            //     window.location.href = eventObj.data.url;
+            // } else {
+            //     window.location.href = eventObj.data.hostname;
+            // }
+            break;
+    }
+}
+
 function addDebugPanel() {
     utils.sflog('Generate debug panel')
 
@@ -354,159 +538,7 @@ function addDebugPanel() {
 
     bindEvent(window, 'message', function (e) {
         const rawMsg = e.data;
-        if (!rawMsg) {
-            return
-        }
-
-        const pathName = location.pathname;
-        let pageHandle = '';
-        if (/\/products\/[a-zA-Z0-9-]*/.test(pathName)) {
-            pageHandle = pathName.split('products/')[1];
-        } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
-            pageHandle = pathName.split('collections/')[1];
-        } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
-            pageHandle = pathName.split('pages/')[1];
-        }
-
-        const msg = utils.parseJSON(rawMsg);
-        if (!msg) {
-            return
-        }
-
-        const name = msg.name;
-        const data = msg.data;
-        if (!msg.name) {
-            return
-        }
-
-        const url = window.location.href;
-        const urlObj = new URL(window.location.href);
-
-        switch (name) {
-            case SF_CONST.EVENT_COPY:
-                utils.copyToClipboard(data);
-                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
-                break;
-            case SF_CONST.EVENT_CLEAR_CART:
-                storage.set(SF_CONST.KEY_CART_TOKEN, null, false)
-                window.location.reload();
-                break;
-            case SF_CONST.EVENT_CLEAR_FS:
-                storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}`, false)
-                storage.remove(`${SF_CONST.KEY_FEATURE_SWITCH}_${SF_VAR.shop_id}_expire`, false)
-                window.location.reload();
-                break;
-            case SF_CONST.EVENT_PAGE_SPEED_GT:
-                openGtmetrixPs();
-                break;
-            case SF_CONST.EVENT_PAGE_SPEED_GG:
-                window.open(`https://developers.google.com/speed/pagespeed/insights/?url=${url}`)
-                break;
-            case SF_CONST.EVENT_PARAM_DEBUG:
-                urlObj.searchParams.append('sbase_debug', 1);
-                window.location.href = urlObj.href;
-                break;
-            case SF_CONST.EVENT_PARAM_CSR:
-                urlObj.searchParams.append('render_csr', 1);
-                window.location.href = urlObj.href;
-                break;
-            case SF_CONST.EVENT_URL_BOOTSTRAP:
-                window.open(utils.getBootstrapUrl());
-                break;
-            case SF_CONST.EVENT_URL_PRODUCT_SINGLE:
-                if (!pageHandle) {
-                    utils.show_notify('Không mở được', 'Đứng ở trang product detail thì mới mở được JSON chứ pa =.=', 'warning')
-                    return
-                }
-                window.open(`${window.location.origin}/api/catalog/product.json?handle=${pageHandle}`);
-                break;
-            case SF_CONST.EVENT_URL_CART:
-                window.location.href = `${window.location.origin}/cart`;
-                break;
-            case SF_CONST.EVENT_URL_PRODUCT_LIST:
-                window.location.href = `${window.location.origin}/collections/all`;
-                break;
-            case SF_CONST.EVENT_URL_COLLECTION_SINGLE:
-                if (!pageHandle) {
-                    utils.show_notify('Không mở được', 'Đứng ở trang collection detail thì mới mở được JSON chứ pa =.=', 'warning')
-                    return
-                }
-                window.open(`${window.location.origin}/api/catalog/collections_v2.json?handles=${pageHandle}`);
-                break;
-            case SF_CONST.EVENT_URL_PAGE_SINGLE:
-                if (!pageHandle) {
-                    utils.show_notify('Không mở được', 'Đứng ở trang page detail thì mới mở được JSON chứ pa =.=', 'warning')
-                    return
-                }
-                window.open(`${window.location.origin}/api/pages.json?handles=${pageHandle}`);
-                break;
-            case SF_CONST.EVENT_URL_COLLECTION_LIST:
-                window.location.href = `${window.location.origin}/collections`;
-                break;
-            case SF_CONST.EVENT_URL_LOGIN_AS:
-                let hiveUrl = '';
-                switch (SF_VAR.env) {
-                    case SF_CONST.ENV_DEV:
-                        hiveUrl = SF_CONST.URL_HIVE_DEV;
-                        break;
-                    case SF_CONST.ENV_STAG:
-                        hiveUrl = SF_CONST.URL_HIVE_STAG;
-                        break;
-                    case SF_CONST.ENV_PROD:
-                        hiveUrl = SF_CONST.URL_HIVE_PROD;
-                        break;
-                    default:
-                        utils.show_notify('Can\'t detect env', 'Can\'t open login as page', 'warning')
-                        return
-                }
-
-                hiveUrl = `${hiveUrl}/admin/app/shop/list?filter[id][value]=${data}`
-                window.open(hiveUrl);
-                break;
-            case SF_CONST.EVENT_EXPORT_CART:
-                // Build object export cart
-                const exportCartObj = {
-                    "action": SF_CONST.EVENT_IMPORT_CART,
-                    "data": {
-                        "url": `${window.location.origin}/cart`,
-                        "cart_token": `${SF_VAR.cart_token}`,
-                        "checkout_token": `${SF_VAR.checkout_token}`
-                    }
-                }
-                // Copy to clip board
-                utils.copyToClipboard(JSON.stringify(exportCartObj));
-                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
-                break;
-            case SF_CONST.EVENT_SHARE_ADMIN_URL:
-                let adminUrl = utils.getAppendedUrl('access_token', SF_VAR.access_token)
-                // Copy to clip board
-                utils.copyToClipboard(adminUrl);
-                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
-                break;
-            case SF_CONST.EVENT_IMPORT_CART:
-                const eventObj = utils.parseJSON(data);
-                if (!eventObj || !eventObj.data || eventObj.url) {
-                    utils.show_notify('Có gì đó éo đúng', 'Hình như data sai rồi pa =.=', 'danger');
-                    return
-                }
-
-                // Set sync action
-                const obj = {
-                    'sync_action': data
-                }
-                chrome.storage.sync.set(obj, function () {
-                    utils.sflog('Set to sync storage ' + rawMsg);
-                });
-
-                // Go to url
-                window.location.href = eventObj.data.url
-                // if (name === SF_CONST.EVENT_IMPORT_CART) {
-                //     window.location.href = eventObj.data.url;
-                // } else {
-                //     window.location.href = eventObj.data.hostname;
-                // }
-                break;
-        }
+        processEvent(rawMsg);
     });
 
 
