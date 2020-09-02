@@ -27,7 +27,7 @@ const utils = {
         return `${window.location.origin}/api/catalog/product.json?handle=${handle}`;
     }, getCollectionSingleUrl: (handle) => {
         return `${window.location.origin}/api/catalog/collections_v2.json?handles=${handle}`;
-    },getPageSingleUrl: (handle) => {
+    }, getPageSingleUrl: (handle) => {
         return `${window.location.origin}/api/pages.json?handle=${handle}`;
     }, parseBootstrap: (bootstrap) => {
         if (bootstrap && bootstrap.result) {
@@ -124,6 +124,38 @@ const utils = {
         } catch {
             return ""
         }
+    }, getAppendedUrl(key, value) {
+        if (document.location.search === "") {
+            return `${window.location.origin}${window.location.pathname}?${key}=${value}`;
+        }
+
+        key = encodeURIComponent(key);
+        value = encodeURIComponent(value);
+
+        // kvp looks like ['key1=value1', 'key2=value2', ...]
+        var kvp = document.location.search.substr(1).split('&');
+
+
+        let i = 0;
+
+        for (; i < kvp.length; i++) {
+            if (kvp[i].startsWith(key + '=')) {
+                let pair = kvp[i].split('=');
+                pair[1] = value;
+                kvp[i] = pair.join('=');
+                break;
+            }
+        }
+
+        if (i >= kvp.length) {
+            kvp[kvp.length] = [key, value].join('=');
+        }
+
+        // can return this or...
+        let params = kvp.join('&');
+
+        // reload page with new params
+        return `${window.location.origin}${window.location.pathname}${params}`;
     }
 }
 
@@ -155,9 +187,8 @@ async function doAjax(url) {
         result = await $.ajax({
             url: url,
         });
-
         return result;
     } catch (error) {
-        console.log(error);
+        console.log("error: ", error);
     }
 }

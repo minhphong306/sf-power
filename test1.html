@@ -45,12 +45,16 @@
             <div class="panel panel-primary">
                 <div class="panel-heading">
                     <i class="fa fa-bug"> </i>
-                    <span class="mp-menu-text">Luôn luôn lắng nghe - lâu lâu mới hiểu</span>
+                    <span class="mp-menu-text" onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_CONST.EXTENSION_URL}')">Click vào đây để copy URL extension</span>
                 </div>
                 <div class="mp-panel-menu panel-body">
-                    <p class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
-                        <i class="fa fa-info-circle"></i>
-                        Tip: Tính năng chia sẻ cart cực xịn mới ra lò ở tab công cụ</p>
+                    <div class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
+                        <p>
+                            <i class="fa fa-info-circle"></i>
+                            <span id="quote"></span>
+                        </p>
+                    </div>
+
                     <div>
                         <!-- Nav tabs -->
                         <ul class="nav nav-tabs" role="tablist">
@@ -185,6 +189,7 @@
                                             <a role="button" data-toggle="collapse" data-parent="#accordion"
                                                href="#wtf_is_this" aria-expanded="true"
                                                aria-controls="collapseOne"
+                                               onclick="changeToolHint('share_cart')"
                                                class="fa fa-question-circle">
                                             </a>
                                         </td>
@@ -207,32 +212,23 @@
                                         </td>
                                     </tr>
 
-                                    <!--                                    <tr>-->
-                                    <!--                                        <td>Admin URL-->
-                                    <!--                                            <a role="button" data-toggle="collapse" data-parent="#accordion"-->
-                                    <!--                                               href="#wtf_is_this" aria-expanded="true"-->
-                                    <!--                                               aria-controls="collapseOne"-->
-                                    <!--                                               class="fa fa-question-circle">-->
-                                    <!--                                            </a>-->
-                                    <!--                                        </td>-->
-                                    <!--                                        <td>-->
-                                    <!--                                            <button class="btn btn-primary"-->
-                                    <!--                                                    onclick="sendMessage('${SF_CONST.EVENT_EXPORT_ADMIN_URL}', 'hihi')">-->
-                                    <!--                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>-->
-                                    <!--                                                Chia sẻ link-->
-                                    <!--                                            </button>-->
-
-                                    <!--                                            <button-->
-                                    <!--                                                    role="button" data-toggle="collapse" data-parent="#accordion"-->
-                                    <!--                                                    href="#import_url" aria-expanded="true"-->
-                                    <!--                                                    aria-controls="collapseOne"-->
-                                    <!--                                                    class="btn btn-primary"-->
-                                    <!--                                                    onclick="import_action='${SF_CONST.EVENT_IMPORT_ADMIN_URL}';">-->
-                                    <!--                                                <i class="fa fa-cloud-download" aria-hidden="true"></i>-->
-                                    <!--                                                Import link-->
-                                    <!--                                            </button>-->
-                                    <!--                                        </td>-->
-                                    <!--                                    </tr>-->
+                                    <tr>
+                                        <td>Admin URL
+                                            <a role="button" data-toggle="collapse" data-parent="#accordion"
+                                               href="#wtf_is_this" aria-expanded="true"
+                                               aria-controls="collapseOne"
+                                               onclick="changeToolHint('admin_url')"
+                                               class="fa fa-question-circle">
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-primary"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_SHARE_ADMIN_URL}', 'hihi')">
+                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>
+                                                Chia sẻ link
+                                            </button>
+                                        </td>
+                                    </tr>
                                     </tbody>
                                 </table>
 

@@ -21,14 +21,16 @@ let SF_VAR = {
     checkout_token: '',
     access_token: '',
     access_token_expire: '',
-    shop: '',
-    shop_expire: '',
+    quotes: ['Chúc bạn một ngày tốt lành ^^'],
     preview_access_token: 'dài nên ko hiển thị. Cứ click là copy',
     env: '',
-    current_pathname: ''
+    current_pathname: '',
+    current_quote: '',
 }
 
 const SF_CONST = {
+    EXTENSION_URL: 'https://chrome.google.com/webstore/detail/sf-power/hmckjbknfohejmngijegobipgebckopo',
+    QUOTE_URL: 'https://api.github.com/gists/9311610c85e289355eefb15f6aeafaf4',
     NOT_SF: "-98",
     NOT_KNOWN_PAGE: "not_known",
 
@@ -67,14 +69,14 @@ const SF_CONST = {
     EVENT_URL_LOGIN_AS: 'login_as',
     EVENT_IMPORT_CART: 'import_cart',
     EVENT_EXPORT_CART: 'export_cart',
-    EVENT_EXPORT_ADMIN_URL: 'export_admin_url',
-    EVENT_IMPORT_ADMIN_URL: 'import_admin_url',
+    EVENT_SHARE_ADMIN_URL: 'share_admin_url',
     EVENT_SET_STORAGE: 'set_storage',
 
     ID_SF_TOOL_FRAME: 'sf_tool_iframe',
     // Send event
     EVENT_UPDATE_TOKEN: 'update_token',
     EVENT_UPDATE_PAGE: 'update_page',
+    EVENT_UPDATE_QUOTE: 'update_quote',
 
     // Chrome sync storage
     KEY_SYNC_ACTION: 'sync_action',
@@ -117,36 +119,11 @@ function doSyncAction() {
         }
 
         // Switch action to do (set to local storage)
-        debugger
         switch (data.action) {
             case SF_CONST.EVENT_IMPORT_CART:
                 storage.set(SF_CONST.KEY_CART_TOKEN, `"${data.data.cart_token}"`, false)
                 storage.set(SF_CONST.KEY_CHECKOUT_TOKEN, `"${data.data.checkout_token}"`, false)
                 break;
-            // case SF_CONST.EVENT_IMPORT_ADMIN_URL:
-            //     const listData = data.data.kvs || []
-            //
-            //     for (const item in listData) {
-            //         const key = item['k']
-            //         const value = item['v']
-            //
-            //         console.log('Got key: ', key, '; value: ', value)
-            //     }
-            //
-            //     // Set to storage
-            //
-            //     // Remove old sync action
-            //     chrome.storage.sync.remove(['sync_action'], function () {
-            //         utils.sflog('Remove action success');
-            //
-            //         // Set new sync action
-            //         chrome.storage.sync.set(obj, function () {
-            //             utils.sflog('Set to sync storage ' + rawMsg);
-            //             // Redirect to admin url
-            //             window.location.href = data.data.url
-            //         });
-            //     });
-            //     break;
             default:
                 utils.sflog("Invalid action: ", data.action)
                 return
@@ -178,6 +155,16 @@ function getUserId() {
     }
 }
 
+async function getQuotes() {
+    try {
+        let response = await doAjax(SF_CONST.QUOTE_URL)
+        let rawQuotes = response["files"]["quotes.json"]["content"]
+        SF_VAR.quotes = utils.parseJSON(rawQuotes) || ["Chúc bạn ngày mới tốt lành"];
+    } catch (e) {
+        console.log('error get quotes: ', e)
+    }
+}
+
 async function startApplication() {
     // Get from cache
     getFromCache()
@@ -192,6 +179,9 @@ async function startApplication() {
             return
         }
     }
+
+    // Get quotes
+    getQuotes();
 
     // Check has any sync action
     // Get from storage. If has action -> do action, clear sync storage and reload page
@@ -240,7 +230,6 @@ async function getPageInfo() {
         const url = utils.getProductSingleUrl(SF_VAR.handle)
         sfPageObject = await doAjax(url)
         SF_VAR.page_id = sfPageObject ? sfPageObject.id : 0
-        console.log('Product page: ', sfPageId)
         return
     } else if (pathName !== 'collections/all' && /\/collections\/[a-zA-Z0-9-]*/.test(pathName)) {
         SF_VAR.page_type = 'Collection';
@@ -250,7 +239,6 @@ async function getPageInfo() {
         sfPageObject = await doAjax(url)
         sfPageObject = (sfPageObject && sfPageObject.collections && sfPageObject.collections.length > 0) ? sfPageObject.collections[0] : {id: 0}
         SF_VAR.page_id = sfPageObject.id
-        utils.sflog('Collection page: ', SF_VAR.page_id)
 
     } else if (/\/pages\/[a-zA-Z0-9-]*/.test(pathName)) {
         SF_VAR.page_type = 'Page';
@@ -260,7 +248,6 @@ async function getPageInfo() {
         sfPageObject = await doAjax(url)
         sfPageObject = (sfPageObject && sfPageObject.page) ? sfPageObject.page : {id: 0}
         SF_VAR.page_id = sfPageObject.id
-        utils.sflog('Page page: ', SF_VAR.page_id)
     } else {
         SF_VAR.page_type = "NOT_KNOWN_PAGE"
         SF_VAR.page_id = "0"
@@ -370,7 +357,6 @@ function addDebugPanel() {
         if (!rawMsg) {
             return
         }
-        console.log('receive msg: ', rawMsg)
 
         const pathName = location.pathname;
         let pageHandle = '';
@@ -491,35 +477,13 @@ function addDebugPanel() {
                 utils.copyToClipboard(JSON.stringify(exportCartObj));
                 utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
                 break;
-            // case SF_CONST.EVENT_EXPORT_ADMIN_URL:
-            //     // Build object export url
-            //     let listObj = []
-            //     for (const key in localStorage) {
-            //         // Get all keys start with sbase_
-            //         if (key.includes('sbase_')) {
-            //             const obj = {
-            //                 k: key,
-            //                 v: localStorage.getItem(key)
-            //             }
-            //
-            //             listObj.push(obj);
-            //         }
-            //     }
-            //
-            //     const exportUrlObj = {
-            //         "action": SF_CONST.EVENT_IMPORT_ADMIN_URL,
-            //         "data": {
-            //             "hostname": `${window.location.hostname}`,
-            //             "url": `${window.location.href}`,
-            //             "kvs": listObj,
-            //         }
-            //     }
-            //     // Copy to clip board
-            //     utils.copyToClipboard(JSON.stringify(exportUrlObj));
-            //     utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
-            //     break;
+            case SF_CONST.EVENT_SHARE_ADMIN_URL:
+                let adminUrl = utils.getAppendedUrl('access_token', SF_VAR.access_token)
+                // Copy to clip board
+                utils.copyToClipboard(adminUrl);
+                utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
+                break;
             case SF_CONST.EVENT_IMPORT_CART:
-            case SF_CONST.EVENT_IMPORT_ADMIN_URL:
                 const eventObj = utils.parseJSON(data);
                 if (!eventObj || !eventObj.data || eventObj.url) {
                     utils.show_notify('Có gì đó éo đúng', 'Hình như data sai rồi pa =.=', 'danger');
@@ -544,6 +508,7 @@ function addDebugPanel() {
                 break;
         }
     });
+
 
     let script = `
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></s` + `cript>
@@ -596,6 +561,8 @@ function addDebugPanel() {
                     document.getElementById('page_type').innerText = data.page_type;
                     document.getElementById('page_id').innerText = data.page_id;
                     break;
+                case '${SF_CONST.EVENT_UPDATE_QUOTE}':
+                    document.getElementById('quote').innerText = data.quote;
             }
         });
         
@@ -651,6 +618,22 @@ function addDebugPanel() {
         });
     }
     
+    
+    function changeToolHint(toolName) {
+        const textElem = document.getElementById('wtf_is_this')
+        let htmlText = '';
+        switch(toolName) {
+            case 'share_cart':
+                htmlText = '<p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p><hr><p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi chongười cần chia sẻ</p><p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg.</p>';
+                break;
+            case 'admin_url':
+                htmlText = '<p>Sao chép link admin, chia sẻ cho người khác mà ko cần tài khoản, mật khẩu</p><hr><p><strong>Lưu ý</strong>: Không nên dùng với shop khách. Rất nguy hiểm</p>';
+                break;
+        }
+
+        textElem.innerHTML = htmlText;
+    }
+    
     function importUrl(){
         const data = document.getElementById('import_url_content').value;
         sendMessage(import_action, data);
@@ -682,12 +665,16 @@ function addDebugPanel() {
             <div class="panel panel-primary">
                 <div class="panel-heading">
                     <i class="fa fa-bug"> </i>
-                    <span class="mp-menu-text">Luôn luôn lắng nghe - lâu lâu mới hiểu</span>
+                    <span class="mp-menu-text" onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_CONST.EXTENSION_URL}')">Click vào đây để copy URL extension</span>
                 </div>
                 <div class="mp-panel-menu panel-body">
-                    <p class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
-                        <i class="fa fa-info-circle"></i>
-                        Tip: Tính năng chia sẻ cart cực xịn mới ra lò ở tab công cụ</p>
+                    <div class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
+                        <p>
+                            <i class="fa fa-info-circle"></i>
+                            <span id="quote"></span>
+                        </p>
+                    </div>
+
                     <div>
                         <!-- Nav tabs -->
                         <ul class="nav nav-tabs" role="tablist">
@@ -822,6 +809,7 @@ function addDebugPanel() {
                                             <a role="button" data-toggle="collapse" data-parent="#accordion"
                                                href="#wtf_is_this" aria-expanded="true"
                                                aria-controls="collapseOne"
+                                               onclick="changeToolHint('share_cart')"
                                                class="fa fa-question-circle">
                                             </a>
                                         </td>
@@ -844,32 +832,23 @@ function addDebugPanel() {
                                         </td>
                                     </tr>
 
-                                    <!--                                    <tr>-->
-                                    <!--                                        <td>Admin URL-->
-                                    <!--                                            <a role="button" data-toggle="collapse" data-parent="#accordion"-->
-                                    <!--                                               href="#wtf_is_this" aria-expanded="true"-->
-                                    <!--                                               aria-controls="collapseOne"-->
-                                    <!--                                               class="fa fa-question-circle">-->
-                                    <!--                                            </a>-->
-                                    <!--                                        </td>-->
-                                    <!--                                        <td>-->
-                                    <!--                                            <button class="btn btn-primary"-->
-                                    <!--                                                    onclick="sendMessage('${SF_CONST.EVENT_EXPORT_ADMIN_URL}', 'hihi')">-->
-                                    <!--                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>-->
-                                    <!--                                                Chia sẻ link-->
-                                    <!--                                            </button>-->
-
-                                    <!--                                            <button-->
-                                    <!--                                                    role="button" data-toggle="collapse" data-parent="#accordion"-->
-                                    <!--                                                    href="#import_url" aria-expanded="true"-->
-                                    <!--                                                    aria-controls="collapseOne"-->
-                                    <!--                                                    class="btn btn-primary"-->
-                                    <!--                                                    onclick="import_action='${SF_CONST.EVENT_IMPORT_ADMIN_URL}';">-->
-                                    <!--                                                <i class="fa fa-cloud-download" aria-hidden="true"></i>-->
-                                    <!--                                                Import link-->
-                                    <!--                                            </button>-->
-                                    <!--                                        </td>-->
-                                    <!--                                    </tr>-->
+                                    <tr>
+                                        <td>Admin URL
+                                            <a role="button" data-toggle="collapse" data-parent="#accordion"
+                                               href="#wtf_is_this" aria-expanded="true"
+                                               aria-controls="collapseOne"
+                                               onclick="changeToolHint('admin_url')"
+                                               class="fa fa-question-circle">
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-primary"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_SHARE_ADMIN_URL}', 'hihi')">
+                                                <i class="fa fa-cloud-upload" aria-hidden="true"></i>
+                                                Chia sẻ link
+                                            </button>
+                                        </td>
+                                    </tr>
                                     </tbody>
                                 </table>
 
@@ -1121,7 +1100,6 @@ function openGtmetrixPs() {
 function sfToggleDebugIcon() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
 
-    console.log('toggle debug bar now')
     if (SF_VAR.icon_display) {
         SF_VAR.icon_display = false;
 
@@ -1174,8 +1152,13 @@ async function sfToggleDebugBar() {
         });
     }
 
+    // Update quotes
+    const randomQuote = SF_VAR.quotes[Math.floor(Math.random() * SF_VAR.quotes.length)];
+    sendMessageToChild(SF_CONST.EVENT_UPDATE_QUOTE, {
+        quote: randomQuote
+    });
 
-    console.log('toggle debug bar now')
+
     if (SF_VAR.debug_open) {
         SF_VAR.debug_open = false;
 
