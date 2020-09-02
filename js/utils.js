@@ -118,7 +118,7 @@ const utils = {
         }
     },
     parseJSON(raw, sourceCall) {
-        if (!(raw === 'string' || raw instanceof String)) {
+        if (!(typeof raw === 'string' || raw instanceof String)) {
             return raw;
         }
 
