@@ -71,6 +71,7 @@ const SF_CONST = {
     EVENT_EXPORT_CART: 'export_cart',
     EVENT_SHARE_ADMIN_URL: 'share_admin_url',
     EVENT_SET_STORAGE: 'set_storage',
+    EVENT_DEBUG_DISCOUNT: 'debug_discount',
 
     ID_SF_TOOL_FRAME: 'sf_tool_iframe',
     // Send event
@@ -169,6 +170,163 @@ async function getQuotes() {
     }
 }
 
+async function getDiscountInfo(orderId) {
+    try {
+        const orderUrl = `${window.location.origin}/admin/orders/discount-info.json?access_token=${SF_VAR.access_token}&order_id=${orderId}`
+        let rawResp = await doAjax(orderUrl)
+        return utils.parseJSON(rawResp, 'get discount info');
+    } catch (e) {
+        utils.sflog('Error get discount info: ', e)
+        return {}
+    }
+}
+
+
+async function getOrderInfo(orderId) {
+    try {
+        const orderUrl = `${window.location.origin}/admin/orders/${orderId}.json?access_token=${SF_VAR.access_token}`
+        let rawResp = await doAjax(orderUrl)
+        return utils.parseJSON(rawResp, 'get discount info');
+    } catch (e) {
+        utils.sflog('Error get discount info: ', e)
+        return {}
+    }
+}
+
+async function debugDiscount() {
+    const pathname = window.location.pathname;
+    const regexOrderUrl = /\/admin\/orders\/(\d+)/g;
+    const match = regexOrderUrl.exec(pathname);
+    if (!match) {
+        utils.show_notify('Không debug được', 'Đây không phải trang chi tiết order. Chỉ debug được trang order thôi bạn ơiiii.', '',5000)
+        return
+    }
+
+    const orderId = match[1];
+    if (!orderId) {
+        utils.show_notify('Không debug được', 'Có gì đó không đúng. Không tìm được order id', '',5000)
+        return
+    }
+
+    if (!SF_VAR.access_token || SF_VAR.access_token.length === 0) {
+        utils.show_notify('Không debug được', 'Không tìm thấy access token. F5 thử đi bạn ơiii', '',5000)
+        return
+    }
+
+    // Get discount info
+    const discountInfo = await getDiscountInfo(orderId)
+    if (!discountInfo) {
+        utils.show_notify('Có lỗi xảy ra', 'Ping @phongdo để nó phích bug', 'error',5000)
+        return
+    }
+
+    if (!discountInfo.is_supported) {
+        utils.show_notify('Không debug được', 'Order này không phải discount usell nên chưa support :wedontdothatthere:', '', 5000)
+        return
+    }
+
+    // Get order info
+    const orderInfo = await getOrderInfo(orderId)
+    if (!orderInfo) {
+        utils.sflog('Can\'t get order info')
+        return
+    }
+
+    const elem = document.getElementsByClassName('order-layout__item')[1];
+    const debugHtml = getDebugInfoHtml(discountInfo, orderInfo)
+    elem.innerHTML = elem.innerHTML + debugHtml;
+}
+
+function getDebugInfoHtml(discount, order) {
+    let offerName, offerType, offerId, offerUrl;
+    let discountCode, discountData;
+    let totalDiscount, productDiscountHtml = '';
+    if (discount && discount.offer) {
+        if (discount.offer) {
+            offerName = discount.offer.offer_name;
+            offerId = discount.offer.id;
+            offerType = discount.offer.offer_type;
+        }
+
+        if (discount.discount_cart) {
+            discountCode = discount.discount_cart.discount_code;
+            discountData = discount.discount_cart.discounted_data;
+        }
+    }
+
+    if (order && order.order) {
+        order = order.order;
+        totalDiscount = order.total_discounts;
+
+        for (let i = 0; i < order.line_items.length; i++) {
+            const item = order.line_items[i]
+            productDiscountHtml += `<tr>
+                    <td style="width: 30%!important;">${item.title}</td>
+                    <td><span>${item.total_discount}</span></td>
+                </tr>`;
+        }
+    }
+
+    switch (offerType) {
+        case 'pre-purchase':
+            offerUrl = `${window.location.origin}/admin/apps/boost-upsell/up-sell/offer/${offerId}`
+            break;
+        case 'quantity':
+            offerUrl = `${window.location.origin}/admin/apps/boost-upsell/cross-sell/quantity-offer/${offerId}`
+            break;
+        case 'bundle':
+            offerUrl = `${window.location.origin}/admin/apps/boost-upsell/cross-sell/bundle-offer/${offerId}`
+            break;
+        case 'accessory':
+            offerUrl = `${window.location.origin}/admin/apps/boost-upsell/cross-sell/accessories/${offerId}`
+            break;
+    }
+
+    let html = `<div class="order-layout__item" id="sf-power-debug-order">
+    <section class="card" style="background-color: #ffe6ee;">
+        <div class="card__header hide-when-printing">
+            <div class="s-flex s-flex--wrap s-flex--align-center">
+                <div class="s-flex-item s-image is-32x32"><img
+                            src="https://admin-cdn-dev.myshopbase.net/dc6e3f56077/img/s-icon-fulfilled.ec7a7364.svg"
+                            alt="Debug hihi"></div>
+                <div class="s-flex-item s-flex-item--fill s-ml8"><h2 class="stack-item__title">Debug discount</h2></div>
+            </div>
+        </div>
+        <div class="card__section">
+
+
+            <table role="table" class="order-details-summary-table" style="text-align: left;">
+                <tbody>
+                <tr>
+                    <td style="width: 30%!important;">Loại offer</td>
+                    <td><span>${offerType}</span></td>
+                </tr>
+                <tr>
+                    <td style="width: 30%!important;">Tên offer</td>
+                    <td><span> <a href="${offerUrl}" target="_blank">${offerName} ↗</a></span></td>
+                </tr>
+                <tr>
+                    <td style="width: 30%!important;">Discount code</td>
+                    <td><span>${discountCode}</span></td>
+                </tr>
+                <tr>
+                    <td style="width: 30%!important;">Discount data</td>
+                    <td><span>${discountData}</span></td>
+                </tr>
+                <tr>
+                    <td style="width: 30%!important;">Tổng giá trị</td>
+                    <td><span>${totalDiscount}</span></td>
+                </tr>
+                ${productDiscountHtml}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>`
+
+    return html
+}
+
 async function startApplication() {
     // Get from cache
     getFromCache()
@@ -203,7 +361,6 @@ async function startApplication() {
     // Build debug panel
     addIcon();
     addDebugPanel();
-
     // Bind events
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
@@ -515,6 +672,9 @@ function processEvent(rawMsg) {
             // } else {
             //     window.location.href = eventObj.data.hostname;
             // }
+            break;
+        case SF_CONST.EVENT_DEBUG_DISCOUNT:
+            debugDiscount();
             break;
     }
 }

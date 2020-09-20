@@ -38,7 +38,7 @@ const utils = {
             shop_id: 0,
             platform_domain: ''
         }
-    }, show_notify(title, text, type) {
+    }, show_notify(title, text, type, timeout=2000) {
         PNotify.removeAll();
         var item = new PNotify({
             title: title,
@@ -48,7 +48,7 @@ const utils = {
 
         setTimeout(function () {
             PNotify.removeAll();
-        }, 2000)
+        }, timeout)
     }, show_multiple_notify(title, text, type) {
         (new PNotify({
             title: title,
@@ -163,6 +163,12 @@ const utils = {
     }, removeDoubleQuote(input) {
         const regex = /"/gi
         return input.replace(regex, '')
+    }, parseInt(raw) {
+        try {
+            return parseInt(raw);
+        } catch {
+            return 0
+        }
     }
 }
 
