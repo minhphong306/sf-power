@@ -160,6 +160,9 @@ const utils = {
 
         // reload page with new params
         return `${window.location.origin}${window.location.pathname}${params}`;
+    }, removeDoubleQuote(input) {
+        const regex = /"/gi
+        return input.replace(regex, '')
     }
 }
 

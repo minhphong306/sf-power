@@ -285,22 +285,19 @@ function getFromCache() {
     }
 
     // Get tokens
-    const regex = /"/gi
     SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
     if (SF_VAR.cart_token) {
-        SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
+        SF_VAR.cart_token = utils.removeDoubleQuote(SF_VAR.cart_token)
     }
     SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CHECKOUT_TOKEN, false);
     if (SF_VAR.checkout_token) {
-        SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+        SF_VAR.checkout_token = utils.removeDoubleQuote(SF_VAR.checkout_token);
     }
 
     SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
     if (SF_VAR.access_token) {
-        SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
+        SF_VAR.access_token = utils.removeDoubleQuote(SF_VAR.access_token);
     }
-
-    SF_VAR.access_token_expire = storage.get(SF_CONST.KEY_ACCESS_TOKEN_EXPIRE, false);
 }
 
 async function getBootstrap() {
@@ -482,12 +479,12 @@ function processEvent(rawMsg) {
             break;
         case SF_CONST.EVENT_SHARE_ADMIN_URL:
             if (!window.location.href.includes('/admin/')) {
-                utils.show_notify('Không copy', 'Ứ copy đâu, vì không phải link admin', 'warning');
+                utils.show_notify('Không copy', 'Bạn ơi, chỉ copy khi bạn đang ở dashboard thui.', 'warning');
                 return
             }
 
             if (!SF_VAR.access_token) {
-                utils.show_notify('Không copy', 'Ứ copy đâu, vì không tìm thấy access token', 'warning');
+                utils.show_notify('Không copy', 'Mình không tìm thấy access_token để cóp bi', 'warning');
                 return
             }
 
@@ -1151,19 +1148,18 @@ async function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
     if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token) {
-        const regex = /"/gi
         SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
         if (SF_VAR.cart_token) {
-            SF_VAR.cart_token = SF_VAR.cart_token.replace(regex, '')
+            SF_VAR.cart_token = utils.removeDoubleQuote(SF_VAR.cart_token)
         }
         SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CHECKOUT_TOKEN, false);
         if (SF_VAR.checkout_token) {
-            SF_VAR.checkout_token = SF_VAR.checkout_token.replace(regex, '');
+            SF_VAR.checkout_token = utils.removeDoubleQuote(SF_VAR.checkout_token);
         }
 
         SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
         if (SF_VAR.access_token) {
-            SF_VAR.access_token = SF_VAR.access_token.replace(regex, '');
+            SF_VAR.access_token = utils.removeDoubleQuote(SF_VAR.access_token);
         }
 
         sendMessageToChild(SF_CONST.EVENT_UPDATE_TOKEN, {
