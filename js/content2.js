@@ -745,6 +745,7 @@ function addDebugPanel() {
                     document.getElementById('cart_token').innerText = data.cart_token;
                     document.getElementById('checkout_token').innerText = data.checkout_token;
                     document.getElementById('access_token').innerText = data.access_token;
+                    document.getElementById('user_id').innerText = data.user_id;
                     break;
                 case '${SF_CONST.EVENT_UPDATE_PAGE}':
                     document.getElementById('page_type').innerText = data.page_type;
@@ -914,7 +915,7 @@ function addDebugPanel() {
                                     <tr>
                                         <td>User id</td>
                                         <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.user_id}')">
-                                            <span>${SF_VAR.user_id}</span>
+                                            <span id="user_id">${SF_VAR.user_id}</span>
                                         </td>
                                     </tr>
                                     <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
@@ -1307,7 +1308,7 @@ function sfToggleDebugIcon() {
 async function sfToggleDebugBar() {
     let sfToolIcon = document.getElementById('sf-tool-icon');
     let sfDebugBar = document.getElementById('sf-debug-bar');
-    if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token) {
+    if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token || SF_VAR.user_id === 0) {
         SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
         if (SF_VAR.cart_token) {
             SF_VAR.cart_token = utils.removeDoubleQuote(SF_VAR.cart_token)
@@ -1322,10 +1323,13 @@ async function sfToggleDebugBar() {
             SF_VAR.access_token = utils.removeDoubleQuote(SF_VAR.access_token);
         }
 
+        getUserId()
+
         sendMessageToChild(SF_CONST.EVENT_UPDATE_TOKEN, {
             cart_token: SF_VAR.cart_token,
             checkout_token: SF_VAR.checkout_token,
             access_token: SF_VAR.access_token,
+            user_id: SF_VAR.user_id,
         })
     }
 
