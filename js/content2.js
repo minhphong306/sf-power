@@ -198,25 +198,25 @@ async function debugDiscount() {
     const regexOrderUrl = /\/admin\/orders\/(\d+)/g;
     const match = regexOrderUrl.exec(pathname);
     if (!match) {
-        utils.show_notify('Không debug được', 'Đây không phải trang chi tiết order. Chỉ debug được trang order thôi bạn ơiiii.', '',5000)
+        utils.show_notify('Không debug được', 'Đây không phải trang chi tiết order. Chỉ debug được trang order thôi bạn ơiiii.', '', 5000)
         return
     }
 
     const orderId = match[1];
     if (!orderId) {
-        utils.show_notify('Không debug được', 'Có gì đó không đúng. Không tìm được order id', '',5000)
+        utils.show_notify('Không debug được', 'Có gì đó không đúng. Không tìm được order id', '', 5000)
         return
     }
 
     if (!SF_VAR.access_token || SF_VAR.access_token.length === 0) {
-        utils.show_notify('Không debug được', 'Không tìm thấy access token. F5 thử đi bạn ơiii', '',5000)
+        utils.show_notify('Không debug được', 'Không tìm thấy access token. F5 thử đi bạn ơiii', '', 5000)
         return
     }
 
     // Get discount info
     const discountInfo = await getDiscountInfo(orderId)
     if (!discountInfo) {
-        utils.show_notify('Có lỗi xảy ra', 'Ping @phongdo để nó phích bug', 'error',5000)
+        utils.show_notify('Có lỗi xảy ra', 'Ping @phongdo để nó phích bug', 'error', 5000)
         return
     }
 
@@ -241,6 +241,7 @@ function getDebugInfoHtml(discount, order) {
     let offerName, offerType, offerId, offerUrl;
     let discountCode, discountData;
     let totalDiscount, productDiscountHtml = '';
+    let isDiscountDataChangedText = 'Discount data chưa bị thay đổi ✅✅'
     if (discount && discount.offer) {
         if (discount.offer) {
             offerName = discount.offer.offer_name;
@@ -251,6 +252,10 @@ function getDebugInfoHtml(discount, order) {
         if (discount.discount_cart) {
             discountCode = discount.discount_cart.discount_code;
             discountData = discount.discount_cart.discounted_data;
+        }
+
+        if (discount.offer.discount_data !== discountData) {
+            isDiscountDataChangedText = 'Discount data đã bị thay đổi 🔥🔥'
         }
     }
 
@@ -304,6 +309,10 @@ function getDebugInfoHtml(discount, order) {
                 <tr>
                     <td style="width: 30%!important;">Tên offer</td>
                     <td><span> <a href="${offerUrl}" target="_blank">${offerName} ↗</a></span></td>
+                </tr>
+                <tr>
+                    <td style="width: 30%!important;">---</td>
+                    <td><span>${isDiscountDataChangedText}</td>
                 </tr>
                 <tr>
                     <td style="width: 30%!important;">Discount code</td>
