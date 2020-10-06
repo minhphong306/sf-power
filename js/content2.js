@@ -493,7 +493,7 @@ chrome.runtime.onMessage.addListener(
 
 async function rebuildTheme(themeId) {
     if (!SF_VAR.access_token || SF_VAR.access_token.length === 0) {
-        utils.sflog('Không tìm thấy access token')
+        utils.show_notify('Lỗi','Không tìm thấy access token')
         return
     }
 
@@ -502,6 +502,7 @@ async function rebuildTheme(themeId) {
         return
     }
 
+    utils.show_notify('Đang build','Đang build lại theme', 'warning', 1000)
     try {
         const themeUrl = `${window.location.origin}/admin/themes/build.json?access_token=${SF_VAR.access_token}&id=${themeId}`
         let rawResp = await doAjax(themeUrl)
