@@ -12,6 +12,8 @@ let SF_VAR = {
     dragging: false,
     user_id: 0,
     shop_id: 0,
+    themes: [],
+    active_theme: {},
     domain: '',
     page_id: 0,
     gtmetrix_index: 0,
@@ -26,62 +28,6 @@ let SF_VAR = {
     env: '',
     current_pathname: '',
     current_quote: '',
-}
-
-const SF_CONST = {
-    EXTENSION_URL: 'https://chrome.google.com/webstore/detail/sf-power/hmckjbknfohejmngijegobipgebckopo',
-    QUOTE_URL: 'https://api.github.com/gists/9311610c85e289355eefb15f6aeafaf4',
-    NOT_SF: "-98",
-    NOT_KNOWN_PAGE: "not_known",
-
-    KEY_SHOP_ID: "shop_id",
-    KEY_IS_SF: "is_sf",
-    KEY_PLATFORM_DOMAIN: "platform_domain",
-    KEY_CART_TOKEN: "shop/carts/current-cart-token",
-    KEY_FEATURE_SWITCH: "sbase_feature_switch",
-    KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
-    KEY_ACCESS_TOKEN: "sbase_shop-access-token",
-    KEY_ACCESS_TOKEN_EXPIRE: "sbase_shop-access-token_expire",
-
-    ENV_DEV: 'dev',
-    ENV_STAG: 'stag',
-    ENV_PROD: 'prod',
-
-    URL_HIVE_DEV: 'https://hive.dev.shopbase.net',
-    URL_HIVE_STAG: 'https://hive.stag.shopbase.net',
-    URL_HIVE_PROD: 'https://hive.shopbase.com',
-
-    // Receive event
-    EVENT_COPY: 'copy',
-    EVENT_CLEAR_CART: 'clear_cart',
-    EVENT_CLEAR_FS: 'clear_fs',
-    EVENT_PAGE_SPEED_GT: 'gtmetrix',
-    EVENT_PAGE_SPEED_GG: 'google',
-    EVENT_PARAM_DEBUG: 'sbase_debug',
-    EVENT_PARAM_CSR: 'render_csr',
-    EVENT_URL_BOOTSTRAP: 'bootstrap',
-    EVENT_URL_CART: 'cart',
-    EVENT_URL_PRODUCT_SINGLE: 'product_single',
-    EVENT_URL_PRODUCT_LIST: 'product_list',
-    EVENT_URL_COLLECTION_SINGLE: 'collection_single',
-    EVENT_URL_PAGE_SINGLE: 'page_single',
-    EVENT_URL_COLLECTION_LIST: 'collection_list',
-    EVENT_URL_LOGIN_AS: 'login_as',
-    EVENT_IMPORT_CART: 'import_cart',
-    EVENT_EXPORT_CART: 'export_cart',
-    EVENT_SHARE_ADMIN_URL: 'share_admin_url',
-    EVENT_SET_STORAGE: 'set_storage',
-    EVENT_DEBUG_DISCOUNT: 'debug_discount',
-
-    ID_SF_TOOL_FRAME: 'sf_tool_iframe',
-    // Send event
-    EVENT_UPDATE_TOKEN: 'update_token',
-    EVENT_UPDATE_PAGE: 'update_page',
-    EVENT_UPDATE_QUOTE: 'update_quote',
-
-    // Chrome sync storage
-    KEY_SYNC_ACTION: 'sync_action',
-
 }
 
 
@@ -336,6 +282,29 @@ function getDebugInfoHtml(discount, order) {
     return html
 }
 
+async function getThemes() {
+    if (!SF_VAR.access_token || SF_VAR.access_token.length === 0) {
+        utils.sflog('Không tìm thấy access token')
+        return
+    }
+
+    try {
+        const themeUrl = `${window.location.origin}/admin/themes.json?order_by=updated_at&order_direction=desc&access_token=${SF_VAR.access_token}`
+        let rawResp = await doAjax(themeUrl)
+        const parsedTheme = utils.parseJSON(rawResp, 'get theme list');
+
+        if (parsedTheme && parsedTheme.shop_themes && parsedTheme.shop_themes.length > 0) {
+            SF_VAR.active_theme = parsedTheme.shop_themes[0];
+            SF_VAR.themes = parsedTheme;
+        }
+
+    } catch (e) {
+        utils.sflog('Error get theme list: ', e)
+        return {}
+    }
+}
+
+
 async function startApplication() {
     // Get from cache
     getFromCache()
@@ -366,6 +335,9 @@ async function startApplication() {
     if (!SF_VAR.page_type) {
         await getPageInfo();
     }
+
+    // Get themes
+    await getThemes();
 
     // Build debug panel
     addIcon();
@@ -518,6 +490,36 @@ chrome.runtime.onMessage.addListener(
         // if (request.greeting == "hello")
         // sendResponse({farewell: "goodbye"});
     });
+
+async function rebuildTheme(themeId) {
+    if (!SF_VAR.access_token || SF_VAR.access_token.length === 0) {
+        utils.sflog('Không tìm thấy access token')
+        return
+    }
+
+    if (!themeId) {
+        utils.show_notify('Lỗi', `Theme id không đúng: ${themeId}`, 'error')
+        return
+    }
+
+    try {
+        const themeUrl = `${window.location.origin}/admin/themes/build.json?access_token=${SF_VAR.access_token}&id=${themeId}`
+        let rawResp = await doAjax(themeUrl)
+        const response = utils.parseJSON(rawResp, 'build theme');
+
+        if (response && response.success) {
+            utils.show_notify('Xongg', 'Đã build xong shop theme', 'success')
+            return
+        }
+
+        utils.show_notify('Lỗi', 'Có lỗi gì đó, xem ở console đi', 'error');
+        utils.sflog(response)
+
+    } catch (e) {
+        utils.sflog('Error build theme: ', e)
+        return {}
+    }
+}
 
 function processEvent(rawMsg) {
     if (!rawMsg) {
@@ -676,14 +678,12 @@ function processEvent(rawMsg) {
 
             // Go to url
             window.location.href = eventObj.data.url
-            // if (name === SF_CONST.EVENT_IMPORT_CART) {
-            //     window.location.href = eventObj.data.url;
-            // } else {
-            //     window.location.href = eventObj.data.hostname;
-            // }
             break;
         case SF_CONST.EVENT_DEBUG_DISCOUNT:
             debugDiscount();
+            break;
+        case SF_CONST.EVENT_REBUILD_THEME:
+            rebuildTheme(SF_VAR.active_theme.id);
             break;
     }
 }
@@ -918,6 +918,15 @@ function addDebugPanel() {
                                             <button class="btn btn-primary"
                                                     onclick="sendMessage('${SF_CONST.EVENT_URL_LOGIN_AS}', '${SF_VAR.shop_id}')">
                                                 <i class="fa fa-external-link-square" aria-hidden="true"></i> Login as
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Active theme</td>
+                                        <td>
+                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.active_theme.id}')">${SF_VAR.active_theme.id}</span>
+                                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', '${SF_VAR.active_theme.id}')">
+                                                <i class="fa fa-refresh" aria-hidden="true"></i> Rebuild
                                             </button>
                                         </td>
                                     </tr>

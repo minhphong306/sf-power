@@ -1,41 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head>
+const SF_TEMPLATE = {
+    buildMainIframe: (data) => {
+        const script = data.script
+
+
+        return `<!DOCTYPE html>
+    <html>
+    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>abc</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-    <link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">
-    <style>
-        .mp-panel-menu.panel-body {
-            padding: 0
-        }
+    ${script}
 
-        .panel-heading a {
-            color: #fff;
-        }
-
-        .mp-padding-10 {
-            padding: 10px;
-        }
-
-        .sf-float {
-            position: fixed;
-            width: 60px;
-            height: 60px;
-            bottom: 40px;
-            left: 40px;
-            background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
-            background-size: contain;
-            color: #FFF;
-            border-radius: 50px;
-            text-align: center;
-            box-shadow: 2px 2px 3px #999;
-        }
-    </style>
+<link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">
+<style>
+    
+</style>
 
 </head>
 <body style="background-color: transparent">
@@ -45,7 +26,7 @@
             <div class="panel panel-primary">
                 <div class="panel-heading">
                     <i class="fa fa-bug"> </i>
-                    <span class="mp-menu-text" onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_CONST.EXTENSION_URL}')">Click vào đây để copy URL extension</span>
+                    <span class="mp-menu-text" onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'EXTENSION_URL')">Click vào đây để copy URL extension</span>
                 </div>
                 <div class="mp-panel-menu panel-body">
                     <div class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
@@ -88,7 +69,7 @@
                                     </thead>
 
                                     <tbody>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'SHOP_ID')">
                                         <td>Platform domain</td>
                                         <td>${SF_VAR.domain}</td>
                                     </tr>
@@ -99,15 +80,6 @@
                                             <button class="btn btn-primary"
                                                     onclick="sendMessage('${SF_CONST.EVENT_URL_LOGIN_AS}', '${SF_VAR.shop_id}')">
                                                 <i class="fa fa-external-link-square" aria-hidden="true"></i> Login as
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Active theme</td>
-                                        <td>
-                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.active_theme.id}')">${SF_VAR.active_theme.id}</span>
-                                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', '${SF_VAR.active_theme.id}')">
-                                                <i class="fa fa-refresh" aria-hidden="true"></i> Rebuild
                                             </button>
                                         </td>
                                     </tr>
@@ -452,3 +424,6 @@
     </div>
 </body>
 </html>
+`
+    }
+}
