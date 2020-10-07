@@ -141,7 +141,7 @@ async function getOrderInfo(orderId) {
 
 async function debugDiscount() {
     const pathname = window.location.pathname;
-    const regexOrderUrl = /\/admin\/orders\/(\d+)/g;
+    const regexOrderUrl = /\/orders\/(\d+)/g;
     const match = regexOrderUrl.exec(pathname);
     if (!match) {
         utils.show_notify('Không debug được', 'Đây không phải trang chi tiết order. Chỉ debug được trang order thôi bạn ơiiii.', '', 5000)
