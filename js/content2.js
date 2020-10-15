@@ -493,7 +493,7 @@ chrome.runtime.onMessage.addListener(
 
 async function rebuildTheme(themeId) {
     if (!SF_VAR.access_token || SF_VAR.access_token.length === 0) {
-        utils.show_notify('Lỗi','Không tìm thấy access token')
+        utils.show_notify('Lỗi', 'Không tìm thấy access token')
         return
     }
 
@@ -502,7 +502,7 @@ async function rebuildTheme(themeId) {
         return
     }
 
-    utils.show_notify('Đang build','Đang build lại theme', 'warning', 1000)
+    utils.show_notify('Đang build', 'Đang build lại theme', 'warning', 1000)
     try {
         const themeUrl = `${window.location.origin}/admin/themes/build.json?access_token=${SF_VAR.access_token}&id=${themeId}`
         let rawResp = await doAjax(themeUrl)
@@ -553,7 +553,8 @@ function processEvent(rawMsg) {
 
     switch (name) {
         case SF_CONST.EVENT_COPY:
-            utils.copyToClipboard(data);
+            let copyData = getCopyData(data)
+            utils.copyToClipboard(copyData);
             utils.show_notify('Xong!!!!', 'Đã copy vào clipboard', 'success');
             break;
         case SF_CONST.EVENT_CLEAR_CART:
@@ -687,6 +688,31 @@ function processEvent(rawMsg) {
             rebuildTheme(SF_VAR.active_theme.id);
             break;
     }
+}
+
+function getCopyData(dataName) {
+    switch (dataName) {
+        case 'EXTENSION_URL':
+            return SF_CONST.EXTENSION_URL;
+        case 'platform_domain':
+            return SF_VAR.domain;
+        case 'shop_id':
+            return SF_VAR.shop_id;
+        case 'active_theme_id':
+            return SF_VAR.active_theme.id;
+        case 'user_id':
+            return SF_VAR.user_id;
+        case 'page_id':
+            return SF_VAR.page_id;
+        case 'cart_token':
+            return SF_VAR.cart_token;
+        case 'checkout_token':
+            return SF_VAR.checkout_token;
+        case 'access_token':
+            return SF_VAR.access_token;
+    }
+
+    return ":ehh_boy: no match event"
 }
 
 function addDebugPanel() {
@@ -865,7 +891,7 @@ function addDebugPanel() {
             <div class="panel panel-primary">
                 <div class="panel-heading">
                     <i class="fa fa-bug"> </i>
-                    <span class="mp-menu-text" onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_CONST.EXTENSION_URL}')">Click vào đây để copy URL extension</span>
+                    <span class="mp-menu-text" onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'EXTENSION_URL')">Click vào đây để copy URL extension</span>
                 </div>
                 <div class="mp-panel-menu panel-body">
                     <div class="bg bg-success" style="padding: 10px; border-style: groove; border-radius: 10px;">
@@ -908,14 +934,14 @@ function addDebugPanel() {
                                     </thead>
 
                                     <tbody>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'platform_domain')">
                                         <td>Platform domain</td>
                                         <td>${SF_VAR.domain}</td>
                                     </tr>
                                     <tr>
                                         <td>Shop id</td>
                                         <td>
-                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">${SF_VAR.shop_id}</span>
+                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'shop_id')">${SF_VAR.shop_id}</span>
                                             <button class="btn btn-primary"
                                                     onclick="sendMessage('${SF_CONST.EVENT_URL_LOGIN_AS}', '${SF_VAR.shop_id}')">
                                                 <i class="fa fa-external-link-square" aria-hidden="true"></i> Login as
@@ -925,31 +951,31 @@ function addDebugPanel() {
                                     <tr>
                                         <td>Active theme</td>
                                         <td>
-                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.active_theme.id}')">${SF_VAR.active_theme.id}</span>
-                                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', '${SF_VAR.active_theme.id}')">
+                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'active_theme_id')">${SF_VAR.active_theme.id}</span>
+                                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', 'active_theme_id')">
                                                 <i class="fa fa-refresh" aria-hidden="true"></i> Rebuild
                                             </button>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>User id</td>
-                                        <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.user_id}')">
+                                        <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'user_id')">
                                             <span id="user_id">${SF_VAR.user_id}</span>
                                         </td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'page_id')">
                                         <td id="page_type">${SF_VAR.page_type}</td>
                                         <td id="page_id">${SF_VAR.page_id}</td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'cart_token')">
                                         <td>Cart token</td>
                                         <td id="cart_token">${SF_VAR.cart_token}</td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'checkout_token}')">
                                         <td>Checkout token</td>
                                         <td id="checkout_token">${SF_VAR.checkout_token}</td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.access_token}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'access_token')">
                                         <td>Access token</td>
                                         <td id="access_token">${SF_VAR.preview_access_token}</td>
                                     </tr>
@@ -972,7 +998,7 @@ function addDebugPanel() {
                                         </td>
                                         <td>
                                             <button class="btn btn-danger"
-                                                    onclick="sendMessage('${SF_CONST.EVENT_CLEAR_CART}', '${SF_VAR.cart_token}')">
+                                                    onclick="sendMessage('${SF_CONST.EVENT_CLEAR_CART}', 'cart_token')">
                                                 <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
                                                 Xóa cart
                                             </button>
