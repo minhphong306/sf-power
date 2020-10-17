@@ -33,6 +33,8 @@ const SF_CONST = {
     EVENT_PARAM_CSR: 'render_csr',
     EVENT_URL_BOOTSTRAP: 'bootstrap',
     EVENT_URL_CART: 'cart',
+    EVENT_URL_CART_JSON: 'cart_json',
+    EVENT_URL_DISCOUNT_JSON: 'discount_json',
     EVENT_URL_PRODUCT_SINGLE: 'product_single',
     EVENT_URL_PRODUCT_LIST: 'product_list',
     EVENT_URL_COLLECTION_SINGLE: 'collection_single',

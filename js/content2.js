@@ -593,6 +593,12 @@ function processEvent(rawMsg) {
         case SF_CONST.EVENT_URL_CART:
             window.location.href = `${window.location.origin}/cart`;
             break;
+        case SF_CONST.EVENT_URL_CART_JSON:
+            window.open(`${window.location.origin}/api/checkout/cart.json?cart_token=${SF_VAR.cart_token}`);
+            break;
+        case SF_CONST.EVENT_URL_DISCOUNT_JSON:
+            window.open(`${window.location.origin}/api/offers/discount.json?cart_token=${SF_VAR.cart_token}&debug=true`);
+            break;
         case SF_CONST.EVENT_URL_PRODUCT_LIST:
             window.location.href = `${window.location.origin}/collections/all`;
             break;
@@ -952,7 +958,8 @@ function addDebugPanel() {
                                         <td>Active theme</td>
                                         <td>
                                             <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'active_theme_id')">${SF_VAR.active_theme.id}</span>
-                                            <button class="btn btn-primary" onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', 'active_theme_id')">
+                                            <button class="btn btn-primary"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', 'active_theme_id')">
                                                 <i class="fa fa-refresh" aria-hidden="true"></i> Rebuild
                                             </button>
                                         </td>
@@ -1134,6 +1141,16 @@ function addDebugPanel() {
                                                     onclick="sendMessage('${SF_CONST.EVENT_URL_CART}', '')">
                                                 <i class="fa fa-cart-plus" aria-hidden="true"></i>
                                                 Trang cart
+                                            </button>
+                                            <button class="btn btn-primary"
+                                                    title="Link cart json"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_URL_CART_JSON}', '')">
+                                                <i class="fa fa-cart-plus" aria-hidden="true"></i>
+                                            </button>
+                                            <button class="btn btn-primary"
+                                                    title="Link discount json có debug hihi"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_URL_DISCOUNT_JSON}', '')">
+                                                <i class="fa fa-money" aria-hidden="true"></i>
                                             </button>
                                         </td>
                                     </tr>
