@@ -193,7 +193,7 @@ const storage = {
     }
 }
 
-async function doAjax(url) {
+async function callJQAjax(url) {
     let result;
 
     try {

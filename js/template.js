@@ -1,8 +1,142 @@
+// Idea: Tách file template ra 1 file chứa các function build -> giảm thời gian scroll ở file main
+// data.script
+// data.variable
+
+// Lưu ý: cần cho file constants chạy trước file này
+
 const SF_TEMPLATE = {
-    buildMainIframe: (data) => {
-        const script = data.script
+    getMainIFrameHTML: () => {
+        let script = `
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></s` + `cript>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>
+    <script>
+        let import_action = ''; 
+        // Send a message to the parent
+        var sendMessage = function (name, data) {
+            // Make sure you are sending a string, and to stringify JSON
+            const msg = {name: name, data: data}
+            const sendMsg = JSON.stringify(msg);
+            window.parent.postMessage(sendMsg, '*');
+        }; 
+        
+        function parseJSON(raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed;
+            } catch {
+                return ""
+            }
+        }
+        
+        // Listen message from parent
+        // Listen to messages from parent window
+        bindEvent(window, 'message', function (e) {
+            const rawMsg = e.data;
+            if (!rawMsg) {
+                return
+            }     
+            
+            const msg = parseJSON(rawMsg);
+            if (!msg) {
+                return
+            }
+    
+            const name = msg.name;
+            const data = msg.data;
+            if (!msg.name) {
+                return
+            }
+                
+            switch (name) {
+                case '${SF_CONST.EVENT_UPDATE_TOKEN}':
+                    document.getElementById('cart_token').innerText = data.cart_token;
+                    document.getElementById('checkout_token').innerText = data.checkout_token;
+                    document.getElementById('access_token').innerText = data.access_token;
+                    document.getElementById('user_id').innerText = data.user_id;
+                    break;
+                case '${SF_CONST.EVENT_UPDATE_PAGE}':
+                    document.getElementById('page_type').innerText = data.page_type;
+                    document.getElementById('page_id').innerText = data.page_id;
+                    break;
+                case '${SF_CONST.EVENT_UPDATE_QUOTE}':
+                    document.getElementById('quote').innerText = data.quote;
+            }
+        });
+        
+        function bindEvent(element, eventName, eventHandler) {
+        if (element.addEventListener) {
+            element.addEventListener(eventName, eventHandler, false);
+        } else if (element.attachEvent) {
+            element.attachEvent('on' + eventName, eventHandler);
+        }
+    }
+    
+    function changeStatus(status) {
+        let textElem = document.getElementById('textStatus')
+        if (status === 'like') {
+             textElem.innerText= 'I love you 3000 ♥♥';
+        } else {
+            textElem.innerText = 'Okay 😭';
+        }
+    }
+    
+    function sendFeedback() {
+        const currentTime = Math.floor(Date.now() / 1000);
+        let name = document.getElementById('feedback_name').value;
+        let note = document.getElementById('feedback_note').value;
+        $.ajax({
+            url: "https://hooks.slack.com/services/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   ",
+            type: "post",
+            data: JSON.stringify({
+                "attachments": [
+                    {
+                        "fallback": "Required plain-text summary of the attachment.",
+                        "color": "#36a64f",
+                        "pretext": "Đại ca <@UC0CE05JP> ơi, có góp ý này :amaze:",
+                        "fields": [
+                            {
+                                "title": "Tên",
+                                "value": name
+                            },
+                            {
+                                "title": "Nội dung góp ý",
+                                "value": note
+                            }
+                        ],
+                        "footer": "SF Power extension",
+                        "footer_icon": "https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png",
+                        "ts": currentTime
+                    }
+                ]
+            }),success: function (response) {
+                document.getElementById('feedback_form').style.display = 'none';
+                document.getElementById('feedback_response').style.display = 'block';
+            }
+        });
+    }
+    
+    
+    function changeToolHint(toolName) {
+        const textElem = document.getElementById('wtf_is_this')
+        let htmlText = '';
+        switch(toolName) {
+            case 'share_cart':
+                htmlText = '<p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p><hr><p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi chongười cần chia sẻ</p><p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg.</p>';
+                break;
+            case 'admin_url':
+                htmlText = '<p>Sao chép link admin, chia sẻ cho người khác mà ko cần tài khoản, mật khẩu</p><hr><p><strong>Lưu ý</strong>: Không nên dùng với shop khách. Rất nguy hiểm</p>';
+                break;
+        }
 
-
+        textElem.innerHTML = htmlText;
+    }
+    
+    function importUrl(){
+        const data = document.getElementById('import_url_content').value;
+        sendMessage(import_action, data);
+    }
+    
+    </s` + `cript>`
         return `<!DOCTYPE html>
     <html>
     <head>
@@ -69,14 +203,14 @@ const SF_TEMPLATE = {
                                     </thead>
 
                                     <tbody>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'SHOP_ID')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'platform_domain')">
                                         <td>Platform domain</td>
                                         <td>${SF_VAR.domain}</td>
                                     </tr>
                                     <tr>
                                         <td>Shop id</td>
                                         <td>
-                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.shop_id}')">${SF_VAR.shop_id}</span>
+                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'shop_id')">${SF_VAR.shop_id}</span>
                                             <button class="btn btn-primary"
                                                     onclick="sendMessage('${SF_CONST.EVENT_URL_LOGIN_AS}', '${SF_VAR.shop_id}')">
                                                 <i class="fa fa-external-link-square" aria-hidden="true"></i> Login as
@@ -84,24 +218,34 @@ const SF_TEMPLATE = {
                                         </td>
                                     </tr>
                                     <tr>
+                                        <td>Active theme</td>
+                                        <td>
+                                            <span onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'active_theme_id')">${SF_VAR.active_theme.id}</span>
+                                            <button class="btn btn-primary"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_REBUILD_THEME}', 'active_theme_id')">
+                                                <i class="fa fa-refresh" aria-hidden="true"></i> Rebuild
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
                                         <td>User id</td>
-                                        <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.user_id}')">
+                                        <td onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'user_id')">
                                             <span id="user_id">${SF_VAR.user_id}</span>
                                         </td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.page_id}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'page_id')">
                                         <td id="page_type">${SF_VAR.page_type}</td>
                                         <td id="page_id">${SF_VAR.page_id}</td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.cart_token}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'cart_token')">
                                         <td>Cart token</td>
                                         <td id="cart_token">${SF_VAR.cart_token}</td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.checkout_token}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'checkout_token}')">
                                         <td>Checkout token</td>
                                         <td id="checkout_token">${SF_VAR.checkout_token}</td>
                                     </tr>
-                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', '${SF_VAR.access_token}')">
+                                    <tr onclick="sendMessage('${SF_CONST.EVENT_COPY}', 'access_token')">
                                         <td>Access token</td>
                                         <td id="access_token">${SF_VAR.preview_access_token}</td>
                                     </tr>
@@ -124,7 +268,7 @@ const SF_TEMPLATE = {
                                         </td>
                                         <td>
                                             <button class="btn btn-danger"
-                                                    onclick="sendMessage('${SF_CONST.EVENT_CLEAR_CART}', '${SF_VAR.cart_token}')">
+                                                    onclick="sendMessage('${SF_CONST.EVENT_CLEAR_CART}', 'cart_token')">
                                                 <i class="fa fa-cart-arrow-down" aria-hidden="true"></i>
                                                 Xóa cart
                                             </button>
@@ -260,6 +404,16 @@ const SF_TEMPLATE = {
                                                     onclick="sendMessage('${SF_CONST.EVENT_URL_CART}', '')">
                                                 <i class="fa fa-cart-plus" aria-hidden="true"></i>
                                                 Trang cart
+                                            </button>
+                                            <button class="btn btn-primary"
+                                                    title="Link cart json"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_URL_CART_JSON}', '')">
+                                                <i class="fa fa-cart-plus" aria-hidden="true"></i>
+                                            </button>
+                                            <button class="btn btn-primary"
+                                                    title="Link discount json có debug hihi"
+                                                    onclick="sendMessage('${SF_CONST.EVENT_URL_DISCOUNT_JSON}', '')">
+                                                <i class="fa fa-money" aria-hidden="true"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -425,5 +579,30 @@ const SF_TEMPLATE = {
 </body>
 </html>
 `
+    },
+    getIconHTML: () => {
+        return `<div id="sf-tool-icon" style="position:fixed;
+    width:60px;
+    height:60px;
+    bottom:85px;
+    right:30px;
+    background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
+    background-size: contain;
+    color:#FFF;
+    border-radius:50px;
+    text-align:center;
+    box-shadow: 2px 2px 3px #999;
+    z-index: 999999;">
+    </div>`
+
+
+    },
+    getWrapMainFrameHTML: () => {
+        return `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:60px; right:20px;  width: 600px; height: 68vh; overflow: hidden; z-index: 99999999">
+    <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
+    <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%; border: none;">
+
+    </iframe>
+</div>`
     }
 }

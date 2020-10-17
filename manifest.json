@@ -4,7 +4,7 @@
   "short_name": "sfpower",
   "description": "Storefront power - tool for debugging storefront",
   "author": "Phong Do",
-  "version": "5.6.7",
+  "version": "5.6.8",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
@@ -30,7 +30,8 @@
         "js/libs/pnotify.custom.min.js",
         "js/constant.js",
         "js/utils.js",
-        "js/content2.js"
+        "js/template.js",
+        "js/content.js"
       ],
       "css": [
         "css/pnotify.custom.min.css"
