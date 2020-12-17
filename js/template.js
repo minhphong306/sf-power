@@ -600,6 +600,13 @@ const SF_TEMPLATE = {
     getWrapMainFrameHTML: () => {
         return `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:60px; right:20px;  width: 600px; height: 68vh; overflow: hidden; z-index: 99999999">
     <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
+    <img src="https://cdn2.iconfinder.com/data/icons/christmas-filled-outline-1/512/christmas_holiday_merry_xmas_decoration_22-512.png" style="
+    width: 60px;
+    right: 18px;
+    top: 30px;
+    position: absolute;
+    transform: rotate(44deg);
+">
     <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%; border: none;">
 
     </iframe>

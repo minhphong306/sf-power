@@ -37,9 +37,9 @@ startApplication();
 async function startApplication() {
     // Get from cache
     getFromCache()
-    if (SF_VAR.sf === SF_CONST.NOT_SF) {
-        return
-    }
+    // if (SF_VAR.sf === SF_CONST.NOT_SF) {
+    //     return
+    // }
 
     // If not ok, request boostrap
     if (!SF_VAR.shop_id) {
