@@ -496,7 +496,7 @@ const SF_TEMPLATE = {
 
                                     </div>
                                     <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
-                                        <div class="panel panel-primary" style="margin-bottom: 25px;">
+                                        <div class="panel panel-primary" style="margin-bottom: 5px;">
                                             <div class="panel-heading" role="tab" id="headingOne">
                                                 <h4 class="panel-title text-danger">
                                                     <a role="button" data-toggle="collapse" data-parent="#accordion"
@@ -539,6 +539,34 @@ const SF_TEMPLATE = {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <div class="panel panel-primary" style="margin-bottom: 25px;">
+                                            <div class="panel-heading" role="tab" id="headingTwo">
+                                                <h4 class="panel-title text-danger">
+                                                    <a role="button" data-toggle="collapse" data-parent="#accordion"
+                                                       href="#donate" aria-expanded="true"
+                                                       aria-controls="collapseOne" class="text-danger">
+                                                        Ủng hộ tôi
+                                                    </a>
+                                                </h4>
+                                            </div>
+                                            <div id="donate" class="panel-collapse collapse" role="tabpanel"
+                                                 aria-labelledby="headingOne">
+                                                <div class="panel-body">
+                                                   <div class="row">
+                                                      <div class="col-md-12">
+                                                       <div class="col-md-6">
+                                                           <p>Cảm ơn bạn, vì đã giúp mình có thêm động lực phát triển extension. Hãy để lại tên cho mình biết nhé ^^</p>
+                                                       </div>
+                                                       <div class="col-md-6">
+                                                           <img style="width: 250px;" src="https://minhphong306.files.wordpress.com/2020/12/momo.jpg"/>
+                                                       </div>
+</div>
+                                                   </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <hr/>
 
 
