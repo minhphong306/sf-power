@@ -35,6 +35,11 @@ utils.sflog('Starting')
 startApplication();
 
 async function startApplication() {
+    bindEvent(window, 'message', function (e) {
+        const rawMsg = e.data;
+        processEvent(rawMsg);
+    });
+
     // Get from cache
     getFromCache()
     // if (SF_VAR.sf === SF_CONST.NOT_SF) {
@@ -72,10 +77,6 @@ async function startApplication() {
     addIcon();
     addDebugPanel();
 
-    bindEvent(window, 'message', function (e) {
-        const rawMsg = e.data;
-        processEvent(rawMsg);
-    });
 
     // Bind events
     let sfToolIcon = document.getElementById('sf-tool-icon');
@@ -359,8 +360,6 @@ async function getThemes() {
         return {}
     }
 }
-
-
 
 
 async function getPageInfo() {
@@ -685,6 +684,10 @@ function processEvent(rawMsg) {
             break;
         case SF_CONST.EVENT_REBUILD_THEME:
             rebuildTheme(SF_VAR.active_theme.id);
+            break;
+        case SF_CONST.EVENT_CHANGE_MEDIUM_URL:
+            // open new tab
+            window.open(data.replace('medium.com', 'medium0.com'))
             break;
     }
 }

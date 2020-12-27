@@ -48,6 +48,9 @@ const SF_CONST = {
     EVENT_DEBUG_DISCOUNT: 'debug_discount',
     EVENT_REBUILD_THEME: 'rebuild_theme',
 
+    // Popup event
+    EVENT_CHANGE_MEDIUM_URL: 'change_medium_url',
+
     // Send event
     EVENT_UPDATE_TOKEN: 'update_token',
     EVENT_UPDATE_PAGE: 'update_page',
