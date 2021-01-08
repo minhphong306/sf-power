@@ -32,7 +32,75 @@ let SF_VAR = {
 
 
 utils.sflog('Starting')
+
+injectScript();
+
 startApplication();
+
+function injectScript() {
+    const element = document.getElementById(SF_CONST.KEY_INLINE_SCRIPT);
+    if (element) {
+        element.parentNode.removeChild(element);
+    }
+
+    const actualCode =
+        "(" +
+        function () {
+            const app = document.getElementById("app");
+            if (!app || !app.__vue__ || !app.__vue__.$store || !app.__vue__.$store.state) {
+                return
+            }
+
+            const state = app.__vue__.$store.state;
+            const location = window.location.href;
+
+            let savedObject = {
+                "id": 0,
+                "user_id": 0,
+                "shop_token": "",
+                "user_token": "",
+                "domain": ""
+            }
+
+            const key = 'sfpower-shopinfo';
+            const raw = localStorage.getItem(key)
+            if (raw && raw.length > 0) {
+                savedObject = JSON.parse(raw);
+            }
+
+
+            if (location.includes('/admin') && state.shop && state.shop.shop) {
+                const shop = state.shop.shop;
+
+                let token = localStorage.getItem('sbase_shop-access-token');
+                if (token && token.length > 0) {
+                    const regex = /"/gi
+                    token = token.replace(regex, '')
+
+                    savedObject.shop_token = token;
+                }
+                savedObject.id = shop.id;
+                savedObject.domain = shop.domain;
+                savedObject.user_id = shop.user_id;
+            } else {
+                const bootstrap = state.bootstrap;
+
+                savedObject.id = bootstrap.shopId;
+                savedObject.domain = bootstrap.platformDomain;
+            }
+
+            // Set to local storage
+            localStorage.setItem(key, JSON.stringify(savedObject))
+
+            // if url = /admin ->
+        } +
+        ")();";
+    const script = document.createElement("script");
+    script.id = SF_CONST.KEY_INLINE_SCRIPT;
+    script.type = "text/javascript";
+    script.textContent = actualCode;
+    document.getElementsByTagName("head")[0].appendChild(script);
+}
 
 async function startApplication() {
     bindEvent(window, 'message', function (e) {
@@ -41,14 +109,14 @@ async function startApplication() {
     });
 
     // Get from cache
-    getFromCache()
+    //getFromCache()
     // if (SF_VAR.sf === SF_CONST.NOT_SF) {
     //     return
     // }
 
     // If not ok, request boostrap
     if (!SF_VAR.shop_id) {
-        await getBootstrap();
+        await getShopInfo();
         if (SF_VAR.sf === SF_CONST.NOT_SF) {
             return
         }
@@ -91,6 +159,15 @@ async function startApplication() {
 
     document.onkeydown = keydown;
 
+}
+
+function isObject(obj) {
+    debugger;
+    if (obj) {
+        return true
+    }
+
+    return false
 }
 
 function detectEnv() {
@@ -443,22 +520,31 @@ function getFromCache() {
     }
 }
 
-async function getBootstrap() {
-    let url = utils.getBootstrapUrl();
-    let bootstrap = await callJQAjax(url)
-    sfBootstrap = utils.parseBootstrap(bootstrap);
-    SF_VAR.shop_id = sfBootstrap.shop_id;
-    SF_VAR.domain = sfBootstrap.platform_domain;
+async function getShopInfo() {
+    // Read from vue state
+    const raw = localStorage.getItem('sfpower-shopinfo');
+    if (raw && raw.length > 0) {
+        const obj = JSON.parse(raw)
 
-    if (sfBootstrap.shop_id === 0) {
-        const domain = window.location.hostname;
-        SF_VAR.sf = SF_CONST.NOT_SF
-        // Handle error for case create store or store has password
-        if (domain.includes('.myshopbase.net') || domain.includes('.onshopbase.com')) {
-            return
-        }
-        storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
+        SF_VAR.shop_id = obj.id;
+        SF_VAR.domain = obj.domain;
     }
+
+    // let url = utils.getBootstrapUrl();
+    // let bootstrap = await callJQAjax(url)
+    // sfBootstrap = utils.parseBootstrap(bootstrap);
+    // SF_VAR.shop_id = sfBootstrap.shop_id;
+    // SF_VAR.domain = sfBootstrap.platform_domain;
+    //
+    // if (sfBootstrap.shop_id === 0) {
+    //     const domain = window.location.hostname;
+    //     SF_VAR.sf = SF_CONST.NOT_SF
+    //     // Handle error for case create store or store has password
+    //     if (domain.includes('.myshopbase.net') || domain.includes('.onshopbase.com')) {
+    //         return
+    //     }
+    //     storage.set(SF_CONST.KEY_IS_SF, SF_CONST.NOT_SF)
+    // }
 }
 
 function addIcon() {

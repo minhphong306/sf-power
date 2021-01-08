@@ -14,6 +14,8 @@ const SF_CONST = {
     KEY_CHECKOUT_TOKEN: "shop/carts/current-checkout-token",
     KEY_ACCESS_TOKEN: "sbase_shop-access-token",
     KEY_ACCESS_TOKEN_EXPIRE: "sbase_shop-access-token_expire",
+    KEY_INLINE_SCRIPT: "sf-power-script",
+    KEY_SF_POWER_STATE: "sf-power-state",
 
     ENV_DEV: 'dev',
     ENV_STAG: 'stag',
