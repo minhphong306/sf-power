@@ -117,7 +117,7 @@ async function startApplication() {
     // If not ok, request boostrap
     if (!SF_VAR.shop_id) {
         await getShopInfo();
-        if (SF_VAR.sf === SF_CONST.NOT_SF) {
+        if (!SF_VAR.shop_id) {
             return
         }
     }
