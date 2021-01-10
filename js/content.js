@@ -46,53 +46,55 @@ function injectScript() {
     const actualCode =
         "(" +
         function () {
-            const app = document.getElementById("app");
-            if (!app || !app.__vue__ || !app.__vue__.$store || !app.__vue__.$store.state) {
-                return
-            }
-
-            const state = app.__vue__.$store.state;
-            const location = window.location.href;
-
-            let savedObject = {
-                "id": 0,
-                "user_id": 0,
-                "shop_token": "",
-                "user_token": "",
-                "domain": ""
-            }
-
-            const key = 'sfpower-shopinfo';
-            const raw = localStorage.getItem(key)
-            if (raw && raw.length > 0) {
-                savedObject = JSON.parse(raw);
-            }
-
-
-            if (location.includes('/admin') && state.shop && state.shop.shop) {
-                const shop = state.shop.shop;
-
-                let token = localStorage.getItem('sbase_shop-access-token');
-                if (token && token.length > 0) {
-                    const regex = /"/gi
-                    token = token.replace(regex, '')
-
-                    savedObject.shop_token = token;
+            try {
+                const app = document.getElementById("app");
+                if (!app || !app.__vue__ || !app.__vue__.$store || !app.__vue__.$store.state) {
+                    return
                 }
-                savedObject.id = shop.id;
-                savedObject.domain = shop.domain;
-                savedObject.user_id = shop.user_id;
-            } else {
-                const bootstrap = state.bootstrap;
 
-                savedObject.id = bootstrap.shopId;
-                savedObject.domain = bootstrap.platformDomain;
+                const state = app.__vue__.$store.state;
+                const location = window.location.href;
+
+                let savedObject = {
+                    "id": 0,
+                    "user_id": 0,
+                    "shop_token": "",
+                    "user_token": "",
+                    "domain": ""
+                }
+
+                const key = 'sfpower-shopinfo';
+                const raw = localStorage.getItem(key)
+                if (raw && raw.length > 0) {
+                    savedObject = JSON.parse(raw);
+                }
+
+
+                if (location.includes('/admin') && state.shop && state.shop.shop) {
+                    const shop = state.shop.shop;
+
+                    let token = localStorage.getItem('sbase_shop-access-token');
+                    if (token && token.length > 0) {
+                        const regex = /"/gi
+                        token = token.replace(regex, '')
+
+                        savedObject.shop_token = token;
+                    }
+                    savedObject.id = shop.id;
+                    savedObject.domain = shop.domain;
+                    savedObject.user_id = shop.user_id;
+                } else {
+                    const bootstrap = state.bootstrap;
+
+                    savedObject.id = bootstrap.shopId;
+                    savedObject.domain = bootstrap.platformDomain;
+                }
+
+                // Set to local storage
+                localStorage.setItem(key, JSON.stringify(savedObject))
+            } catch (e) {
+                console.error("[SF Power] Error: ", e)
             }
-
-            // Set to local storage
-            localStorage.setItem(key, JSON.stringify(savedObject))
-
-            // if url = /admin ->
         } +
         ")();";
     const script = document.createElement("script");
