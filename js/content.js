@@ -23,7 +23,11 @@ let SF_VAR = {
     checkout_token: '',
     access_token: '',
     access_token_expire: '',
-    quotes: ['Chúc bạn một ngày tốt lành ^^'],
+    quotes: ['Chúc bạn một ngày tốt lành ^^',
+        'Nếu bạn muốn làm một việc, bạn sẽ tìm cách. Ngược lại, bạn sẽ tìm lí do',
+        'Tip: Bấm tổ hợp Ctrl + Alt + X để ẩn/hiện debug icon góc màn hình',
+        'Tip: Bấm tổ hợp Ctrl + Alt + D để ẩn/hiện debug bar'
+    ],
     preview_access_token: 'dài nên ko hiển thị. Cứ click là copy',
     env: '',
     current_pathname: '',
@@ -83,17 +87,20 @@ function injectScript() {
                     savedObject.id = shop.id;
                     savedObject.domain = shop.domain;
                     savedObject.user_id = shop.user_id;
-                } else {
+                } else if (state.bootstrap) {
                     const bootstrap = state.bootstrap;
 
                     savedObject.id = bootstrap.shopId;
                     savedObject.domain = bootstrap.platformDomain;
+                } else {
+                    // Not shopbase but using vuejs
+                    return
                 }
 
                 // Set to local storage
                 localStorage.setItem(key, JSON.stringify(savedObject))
             } catch (e) {
-                console.error("[SF Power] Error: ", e)
+                console.log("[SF Power] Error: ", e)
             }
         } +
         ")();";
@@ -125,7 +132,7 @@ async function startApplication() {
     }
 
     // Get quotes
-    getQuotes();
+    // getQuotes();
 
     // Check has any sync action
     // Get from storage. If has action -> do action, clear sync storage and reload page
@@ -160,6 +167,31 @@ async function startApplication() {
     };
 
     document.onkeydown = keydown;
+
+    if (!SF_VAR.cart_token || !SF_VAR.checkout_token || !SF_VAR.access_token || SF_VAR.user_id === 0) {
+        SF_VAR.cart_token = storage.get(SF_CONST.KEY_CART_TOKEN, false);
+        if (SF_VAR.cart_token) {
+            SF_VAR.cart_token = utils.removeDoubleQuote(SF_VAR.cart_token)
+        }
+        SF_VAR.checkout_token = storage.get(SF_CONST.KEY_CHECKOUT_TOKEN, false);
+        if (SF_VAR.checkout_token) {
+            SF_VAR.checkout_token = utils.removeDoubleQuote(SF_VAR.checkout_token);
+        }
+
+        SF_VAR.access_token = storage.get(SF_CONST.KEY_ACCESS_TOKEN, false);
+        if (SF_VAR.access_token) {
+            SF_VAR.access_token = utils.removeDoubleQuote(SF_VAR.access_token);
+        }
+
+        getUserId()
+
+        sendMessageToChild(SF_CONST.EVENT_UPDATE_TOKEN, {
+            cart_token: SF_VAR.cart_token,
+            checkout_token: SF_VAR.checkout_token,
+            access_token: SF_VAR.access_token,
+            user_id: SF_VAR.user_id,
+        })
+    }
 
 }
 
@@ -926,7 +958,7 @@ async function sfToggleDebugBar() {
 }
 
 function keydown(evt) {
-    if (!(evt.ctrlKey && evt.altKey && evt.keyCode === 88)) { //CTRL+ALT+X
+    if (!(evt.ctrlKey && evt.altKey && (evt.keyCode === 88 || evt.keyCode === 68))) { //CTRL+ALT+X/D
         return
     }
 
@@ -945,8 +977,15 @@ function keydown(evt) {
         SF_VAR.sf = true
     }
 
-    if (!evt) evt = event;
-    sfToggleDebugIcon()
+    if (!evt) {
+        evt = event;
+    }
+
+    if (evt.keyCode === 88) {
+        sfToggleDebugIcon()
+    } else {
+        sfToggleDebugBar();
+    }
 }
 
 function bindEvent(element, eventName, eventHandler) {
