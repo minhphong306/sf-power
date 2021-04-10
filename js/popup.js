@@ -13,3 +13,45 @@ document.getElementById('changeUrl').onclick = function () {
         });
     });
 }
+
+document.getElementById('checkA').onclick = function () {
+    let inputURL = document.getElementById('dnsUrl').value;
+    if (!inputURL || inputURL.length === 0) {
+        document.getElementById('err_msg2').innerText = 'Url có gì đó không đúng :cam_thingkingface:';
+        return
+    }
+
+
+    let nonWww, www = '';
+    if (inputURL.startsWith("www.")) {
+        www = inputURL;
+        nonWww = inputURL.replace('www.', '')
+    } else {
+        nonWww = inputURL;
+        www = "www." + inputURL
+    }
+
+    window.open(`https://dnschecker.org/#A/` + nonWww)
+    window.open(`https://dnschecker.org/#CNAME/` + www)
+}
+
+document.getElementById('checkCname').onclick = function () {
+    let inputURL = document.getElementById('dnsUrl').value;
+    if (!inputURL || inputURL.length === 0) {
+        document.getElementById('err_msg2').innerText = 'Url có gì đó không đúng :cam_thingkingface:';
+        return
+    }
+
+
+    let nonWww, www = '';
+    if (inputURL.startsWith("www.")) {
+        www = inputURL;
+        nonWww = inputURL.replace('www.', '')
+    } else {
+        nonWww = inputURL;
+        www = "www." + inputURL
+    }
+
+    window.open(`https://dnschecker.org/#CNAME/` + www)
+    window.open(`https://dnschecker.org/#A/` + nonWww)
+}

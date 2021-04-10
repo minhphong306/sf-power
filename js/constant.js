@@ -48,6 +48,7 @@ const SF_CONST = {
     EVENT_SHARE_ADMIN_URL: 'share_admin_url',
     EVENT_SET_STORAGE: 'set_storage',
     EVENT_DEBUG_DISCOUNT: 'debug_discount',
+    EVENT_CHECK_DNS: 'check_dns',
     EVENT_REBUILD_THEME: 'rebuild_theme',
 
     // Popup event

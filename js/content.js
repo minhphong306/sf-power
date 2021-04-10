@@ -351,6 +351,22 @@ async function debugDiscount() {
     elem.innerHTML = elem.innerHTML + debugHtml;
 }
 
+async function checkDns() {
+    const host = window.location.host;
+
+    let nonWww, www = '';
+    if (host.startsWith("www.")) {
+        www = host;
+        nonWww = host.replace('www.', '')
+    } else {
+        nonWww = host;
+        www = "www." + host
+    }
+
+    window.open(`https://dnschecker.org/#A/` + nonWww)
+    window.open(`https://dnschecker.org/#CNAME/` + www)
+}
+
 function getDebugInfoHtml(discount, order) {
     let offerName, offerType, offerId, offerUrl;
     let discountCode, discountData;
@@ -801,6 +817,9 @@ function processEvent(rawMsg) {
             break;
         case SF_CONST.EVENT_DEBUG_DISCOUNT:
             debugDiscount();
+            break;
+        case SF_CONST.EVENT_CHECK_DNS:
+            checkDns();
             break;
         case SF_CONST.EVENT_REBUILD_THEME:
             rebuildTheme(SF_VAR.active_theme.id);

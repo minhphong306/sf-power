@@ -7,6 +7,18 @@
 </head>
 <body>
 <div style="padding: 20px; min-width: 350px">
+    <p>DNS checker</p>
+    <p class="text-danger" id="err_msg2"></p>
+    <input id="dnsUrl" autocomplete="true" class="form-control" placeholder="Nhập url"/>
+    <button id="checkA" class="btn btn-success" style="margin-top: 5px">
+        <i class="fa fa-cloud-download"></i>
+        Check A record
+    </button>
+    <button id="checkCname" class="btn btn-success" style="margin-top: 5px">
+        <i class="fa fa-cloud-download"></i>
+        Check CNAME
+    </button>
+    <hr>
     <p>Thay medium.com bằng medium0.com là vào được medium</p>
     <p class="text-danger" id="err_msg"></p>
     <input id="url" class="form-control" placeholder="Nhập url"/>
