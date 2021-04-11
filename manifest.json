@@ -4,25 +4,34 @@
   "short_name": "sfpower",
   "description": "Storefront power - tool for debugging storefront",
   "author": "Phong Do",
-  "version": "5.2.0",
+  "version": "6.4.0",
   "icons": {
     "16": "icons/16.png",
     "48": "icons/48.png",
     "128": "icons/128.png"
   },
   "permissions": [
+    "storage",
+    "contextMenus"
   ],
   "browser_action": {
     "default_title": "SF Power",
     "default_popup": "pages/popup.html"
+  },
+  "background": {
+    "scripts": [
+      "js/background.js"
+    ]
   },
   "content_scripts": [
     {
       "js": [
         "js/libs/jquery-3.3.1.min.js",
         "js/libs/pnotify.custom.min.js",
+        "js/constant.js",
         "js/utils.js",
-        "js/content2.js"
+        "js/template.js",
+        "js/content.js"
       ],
       "css": [
         "css/pnotify.custom.min.css"

@@ -1,41 +1,156 @@
-<!DOCTYPE html>
-<html>
-<head>
+// Idea: Tách file template ra 1 file chứa các function build -> giảm thời gian scroll ở file main
+// data.script
+// data.variable
+
+// Lưu ý: cần cho file constants chạy trước file này
+
+const SF_TEMPLATE = {
+    getMainIFrameHTML: () => {
+        let script = `
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></s` + `cript>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></s` + `cript>
+    <script>
+        let import_action = ''; 
+        // Send a message to the parent
+        var sendMessage = function (name, data) {
+            // Make sure you are sending a string, and to stringify JSON
+            const msg = {name: name, data: data}
+            const sendMsg = JSON.stringify(msg);
+            window.parent.postMessage(sendMsg, '*');
+        }; 
+        
+        function parseJSON(raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed;
+            } catch {
+                return ""
+            }
+        }
+        
+        // Listen message from parent
+        // Listen to messages from parent window
+        bindEvent(window, 'message', function (e) {
+            const rawMsg = e.data;
+            if (!rawMsg) {
+                return
+            }     
+            
+            const msg = parseJSON(rawMsg);
+            if (!msg) {
+                return
+            }
+    
+            const name = msg.name;
+            const data = msg.data;
+            if (!msg.name) {
+                return
+            }
+                
+            switch (name) {
+                case '${SF_CONST.EVENT_UPDATE_TOKEN}':
+                    document.getElementById('cart_token').innerText = data.cart_token;
+                    document.getElementById('checkout_token').innerText = data.checkout_token;
+                    document.getElementById('access_token').innerText = data.access_token;
+                    document.getElementById('user_id').innerText = data.user_id;
+                    break;
+                case '${SF_CONST.EVENT_UPDATE_PAGE}':
+                    document.getElementById('page_type').innerText = data.page_type;
+                    document.getElementById('page_id').innerText = data.page_id;
+                    break;
+                case '${SF_CONST.EVENT_UPDATE_QUOTE}':
+                    document.getElementById('quote').innerText = data.quote;
+            }
+        });
+        
+        function bindEvent(element, eventName, eventHandler) {
+        if (element.addEventListener) {
+            element.addEventListener(eventName, eventHandler, false);
+        } else if (element.attachEvent) {
+            element.attachEvent('on' + eventName, eventHandler);
+        }
+    }
+    
+    function changeStatus(status) {
+        let textElem = document.getElementById('textStatus')
+        if (status === 'like') {
+             textElem.innerText= 'I love you 3000 ♥♥';
+        } else {
+            textElem.innerText = 'Okay 😭';
+        }
+    }
+    
+    function sendFeedback() {
+        const currentTime = Math.floor(Date.now() / 1000);
+        let name = document.getElementById('feedback_name').value;
+        let note = document.getElementById('feedback_note').value;
+        $.ajax({
+            url: "https://hooks.slack.com/services/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   ",
+            type: "post",
+            data: JSON.stringify({
+                "attachments": [
+                    {
+                        "fallback": "Required plain-text summary of the attachment.",
+                        "color": "#36a64f",
+                        "pretext": "Đại ca <@UC0CE05JP> ơi, có góp ý này :amaze:",
+                        "fields": [
+                            {
+                                "title": "Tên",
+                                "value": name
+                            },
+                            {
+                                "title": "Nội dung góp ý",
+                                "value": note
+                            }
+                        ],
+                        "footer": "SF Power extension",
+                        "footer_icon": "https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png",
+                        "ts": currentTime
+                    }
+                ]
+            }),success: function (response) {
+                document.getElementById('feedback_form').style.display = 'none';
+                document.getElementById('feedback_response').style.display = 'block';
+            }
+        });
+    }
+    
+    
+    function changeToolHint(toolName) {
+        const textElem = document.getElementById('wtf_is_this')
+        let htmlText = '';
+        switch(toolName) {
+            case 'share_cart':
+                htmlText = '<p>Sao chép cart của người khác trong 1 nốt nhạc 🎶</p><hr><p><strong>Người gửi</strong>: click vào "chia sẻ cart", cart tự động copy, gửi chongười cần chia sẻ</p><p><strong>Người nhận</strong>: click vào "import cart", nhập nội dung cart, bấm import. Xonggg.</p>';
+                break;
+            case 'admin_url':
+                htmlText = '<p>Sao chép link admin, chia sẻ cho người khác mà ko cần tài khoản, mật khẩu</p><hr><p><strong>Lưu ý</strong>: Không nên dùng với shop khách. Rất nguy hiểm</p>';
+                break;
+        }
+
+        textElem.innerHTML = htmlText;
+    }
+    
+    function importUrl(){
+        const data = document.getElementById('import_url_content').value;
+        sendMessage(import_action, data);
+    }
+    
+    </s` + `cript>`
+        return `<!DOCTYPE html>
+    <html>
+    <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>abc</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-    <link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">
-    <style>
-        .mp-panel-menu.panel-body {
-            padding: 0
-        }
+    ${script}
 
-        .panel-heading a {
-            color: #fff;
-        }
-
-        .mp-padding-10 {
-            padding: 10px;
-        }
-
-        .sf-float {
-            position: fixed;
-            width: 60px;
-            height: 60px;
-            bottom: 40px;
-            left: 40px;
-            background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
-            background-size: contain;
-            color: #FFF;
-            border-radius: 50px;
-            text-align: center;
-            box-shadow: 2px 2px 3px #999;
-        }
-    </style>
+<link href="https://fonts.googleapis.com/css?family=Raleway" rel="stylesheet">
+<style>
+    
+</style>
 
 </head>
 <body style="background-color: transparent">
@@ -431,7 +546,7 @@
                                                     <a role="button" data-toggle="collapse" data-parent="#accordion"
                                                        href="#donate" aria-expanded="true"
                                                        aria-controls="collapseOne" class="text-danger">
-                                                        Mua cho tôi ly cafe
+                                                        Ủng hộ tôi
                                                     </a>
                                                 </h4>
                                             </div>
@@ -439,14 +554,14 @@
                                                  aria-labelledby="headingOne">
                                                 <div class="panel-body">
                                                    <div class="row">
+                                                      <div class="col-md-12">
                                                        <div class="col-md-6">
-                                                           <p>Cảm ơn bạn vì đã sử dụng extension</p>
-                                                           <p>Hãy cho tôi biết tên của bạn nhé ^^</p>
+                                                           <p>Cảm ơn bạn, vì đã giúp mình có thêm động lực phát triển extension. Hãy để lại tên cho mình biết nhé ^^</p>
                                                        </div>
                                                        <div class="col-md-6">
-                                                           <img style="width: 250px;
-    right: 58px;" src="https://minhphong306.files.wordpress.com/2020/12/momo.jpg"/>
+                                                           <img style="width: 250px;" src="https://minhphong306.files.wordpress.com/2020/12/momo.jpg"/>
                                                        </div>
+</div>
                                                    </div>
                                                 </div>
                                             </div>
@@ -491,3 +606,31 @@
     </div>
 </body>
 </html>
+`
+    },
+    getIconHTML: () => {
+        return `<div id="sf-tool-icon" style="position:fixed;
+    width:60px;
+    height:60px;
+    bottom:85px;
+    right:30px;
+    background-image: url('https://gblobscdn.gitbook.com/spaces%2F-LbgZ5I9YLGCL2kxzq2a%2Favatar.png?alt=media&width=100');
+    background-size: contain;
+    color:#FFF;
+    border-radius:50px;
+    text-align:center;
+    box-shadow: 2px 2px 3px #999;
+    z-index: 999999;">
+    </div>`
+
+
+    },
+    getWrapMainFrameHTML: () => {
+        return `<div id="sf-debug-bar" style="display:none; position:fixed; bottom:60px; right:20px;  width: 600px; height: 68vh; overflow: hidden; z-index: 99999999">
+    <button style="position: absolute; right: 0px; background-color: #d4d4d4; color:red">Đóng lại</button>
+    <iframe id="${SF_CONST.ID_SF_TOOL_FRAME}" style="width:100%; height: 100%; border: none;">
+
+    </iframe>
+</div>`
+    }
+}

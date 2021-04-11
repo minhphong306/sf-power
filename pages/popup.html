@@ -3,11 +3,30 @@
 <head>
     <meta charset="UTF-8"/>
     <title>SF Power</title>
-    <link rel="stylesheet" type="text/css" href="../css/bootstrap.min.css"/>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 <div style="padding: 20px; min-width: 350px">
-    <p>Bấm Ctrl + Alt + X để hiện debug bar</p>
+    <p>DNS checker</p>
+    <p class="text-danger" id="err_msg2"></p>
+    <input id="dnsUrl" autocomplete="true" class="form-control" placeholder="Nhập url"/>
+    <button id="checkA" class="btn btn-success" style="margin-top: 5px">
+        <i class="fa fa-cloud-download"></i>
+        Check A record
+    </button>
+    <button id="checkCname" class="btn btn-success" style="margin-top: 5px">
+        <i class="fa fa-cloud-download"></i>
+        Check CNAME
+    </button>
+    <hr>
+    <p>Thay medium.com bằng medium0.com là vào được medium</p>
+    <p class="text-danger" id="err_msg"></p>
+    <input id="url" class="form-control" placeholder="Nhập url"/>
+    <button id="changeUrl" class="btn btn-success" style="margin-top: 5px">
+        <i class="fa fa-cloud-download"></i>
+        Vào medium ngay
+    </button>
 </div>
+<script src="../js/popup.js"></script>
 </body>
 </html>
