@@ -21,6 +21,14 @@ document.getElementById('checkA').onclick = function () {
         return
     }
 
+    if (inputURL.startsWith("http://")) {
+        inputURL = inputURL.replace("http://", "")
+    }
+
+    if (inputURL.startsWith("https://")) {
+        inputURL = inputURL.replace("https://", "")
+    }
+
 
     let nonWww, www = '';
     if (inputURL.startsWith("www.")) {
@@ -42,6 +50,13 @@ document.getElementById('checkCname').onclick = function () {
         return
     }
 
+    if (inputURL.startsWith("http://")) {
+        inputURL = inputURL.replace("http://", "")
+    }
+
+    if (inputURL.startsWith("https://")) {
+        inputURL = inputURL.replace("https://", "")
+    }
 
     let nonWww, www = '';
     if (inputURL.startsWith("www.")) {
